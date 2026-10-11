@@ -14,6 +14,7 @@ Writes outputs/runs/<run-id>/{best.pt, log.csv, result.json}.
 import argparse
 import json
 import math
+import pathlib
 import time
 
 import numpy as np
@@ -100,6 +101,7 @@ def main():
     ap.add_argument("--freeze", type=int, default=0, help="freeze encoder + first N conv layers")
     ap.add_argument("--hidden", type=int, default=128)
     ap.add_argument("--layers", type=int, default=4)
+    ap.add_argument("--eval-only", action="store_true", help="no training: evaluate --init at the current local node")
     a = ap.parse_args()
     defaults = {1: (12, 1e-3), 2: (10, 3e-4), 3: (25, 1e-4 if a.init else 1e-3)}
     epochs = a.epochs or defaults[a.stage][0]
@@ -145,6 +147,10 @@ def main():
 
     log, best, bad = [], float("inf"), 0
     rng = np.random.default_rng(a.seed)
+    if a.eval_only:
+        epochs = 0
+        if not (out / "best.pt").exists() or (out / "best.pt").resolve() != pathlib.Path(a.init).resolve():
+            torch.save({"model": model.state_dict(), "args": vars(a), "in_dim": D.in_dim}, out / "best.pt")
     for ep in range(1, epochs + 1):
         t0 = time.time()
         model.train()
@@ -173,7 +179,7 @@ def main():
                 break
     pd.DataFrame(log).to_csv(out / "log.csv", index=False)
 
-    model.load_state_dict(torch.load(out / "best.pt")["model"])
+    load_weights(model, torch.load(out / "best.pt")["model"])  # also accepts older 3-target checkpoints
     # local station: in stages 1-2 it is hidden, so this is a zero-shot forecast at its location
     vis3, w3, _, _ = stage_setup(D, 3, 1.0, 0)
     vis_eval = vis.copy()

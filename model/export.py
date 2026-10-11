@@ -20,12 +20,22 @@ SEASONS = {"Winter (Jan–Feb)": [1, 2], "Pre-monsoon (Mar–May)": [3, 4, 5],
            "SW monsoon (Jun–Sep)": [6, 7, 8, 9], "NE monsoon (Oct–Dec)": [10, 11, 12]}
 
 
+def local_name():
+    """Display name of the stage-3 target station."""
+    nodes = pd.read_csv(OUTS.parent / "processed" / "nodes.csv", dtype={"id": str}, keep_default_na=False)
+    node = nodes[nodes.id == CFG["local"]["node_id"]].iloc[0]
+    return node["name"] if node["kind"] == "sjcet" else f"{node['name']} (GSOD), stand-in for SJCET"
+
+
 def load_runs():
     runs = {}
     for f in sorted((OUTS / "runs").glob("*/result.json")):
         if f.parent.name.startswith("_"):
             continue
-        runs[f.parent.name] = json.loads(f.read_text())
+        r = json.loads(f.read_text())
+        if r.get("local_node") != CFG["local"]["node_id"]:  # scored at a different station: not comparable
+            continue
+        runs[f.parent.name] = r
     return runs
 
 
@@ -44,8 +54,9 @@ def main():
               for b in base if b["local_fraction"] == 1.0]
     for rid, label in [("s1", "GNN stage 1 only (zero-shot at station)"),
                        ("s12", "GNN stages 1→2 (zero-shot at station)")]:
-        if rid in runs:
-            models.append({"name": label, "group": "gnn", "metrics": runs[rid]["local_test"]})
+        if rid in runs:  # these checkpoints predate the tmean/td outputs, so only tmax/tmin/rain are meaningful
+            m = {k: v for k, v in runs[rid]["local_test"].items() if k in ("tmax_c", "tmin_c", "rain")}
+            models.append({"name": label, "group": "gnn", "metrics": m})
     for key, label in STRATEGIES.items():
         rid = f"{key}_f1.0_s0"
         if rid in runs:
@@ -71,8 +82,8 @@ def main():
             m = metrics(z["pred"][sel], z["obs"][sel], z["rain_prob"][sel])
             by_season.append({"model": label, "season": season, **flat(m)})
 
-    out = {"version": 1, "test_period": CFG["splits"]["test"],
-           "local_station": {"id": CFG["local"]["node_id"], "name": "COCHIN (GSOD), stand-in for SJCET"},
+    out = {"version": 1, "test_period": [str(d) for d in CFG["splits"]["test"]],
+           "local_station": {"id": CFG["local"]["node_id"], "name": local_name()},
            "models": models, "ablation": ablation, "by_season": by_season}
     (OUTS / "metrics.json").write_text(json.dumps(out, indent=1))
     pd.DataFrame(ablation).to_csv(OUTS / "ablation.csv", index=False)
@@ -96,7 +107,7 @@ def main():
             ax.set_title(title)
             ax.grid(alpha=0.3)
         axes[0].legend(fontsize=7)
-        fig.suptitle("Test error vs amount of local data (Cochin station, test 2015–2016)")
+        fig.suptitle(f"Test error vs amount of local data ({local_name()}, test 2015–2016)")
         fig.tight_layout()
         fig.savefig(FIG / "ablation.png", dpi=150)
         plt.close(fig)

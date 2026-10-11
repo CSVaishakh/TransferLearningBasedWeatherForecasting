@@ -1,4 +1,4 @@
-"""Stack NASA POWER grid nodes and GSOD station nodes into one array + graph.
+"""Stack NASA POWER grid nodes, GSOD station nodes and the digitized SJCET register into one array + graph.
 
     uv run python data/build_dataset.py
 
@@ -67,6 +67,50 @@ def load_gsod(dates):
     return X, nodes
 
 
+# qc_note reasons that make a register row's temperatures doubtful (a rain-total
+# mismatch for the month only casts doubt on the rain value)
+TEMP_DOUBT = r"doubtful|ambiguous|or \d|uncertain|unreadable|obscured|overwritten|struck|as written|likely \d|shifted|corrected|unclear|wet>dry|min>=max|min>dry"
+
+
+def load_sjcet(dates):
+    """The digitized SJCET register (data/sjcet/sjcet_daily.csv) as one station node.
+
+    The register is read at ~08:30 IST on date D: rain on D fell from D-1 08:30 to
+    D 08:30 and the max thermometer holds the maximum of D-1, so both are moved to
+    D-1. The minimum (early morning of D) stays on D. Dewpoint comes from the 08:30
+    dry/wet bulb pair. tmean = (tmax + tmin) / 2. Rows flagged `suspect` lose their
+    rain value, and also their temperatures when the doubt is about a reading.
+    Rain read after an unread day (multi-day accumulation) is dropped.
+    """
+    s = CFG["sjcet"]
+    df = pd.read_csv(HERE.parent / "data" / "sjcet" / "sjcet_daily.csv", parse_dates=["date"]).set_index("date")
+    sus = df.qc_flag.eq("suspect")
+    t_bad = sus & df.qc_note.fillna("").str.contains(TEMP_DOUBT, case=False, regex=True)
+    for c in ("dry_bulb_c", "wet_bulb_c", "tmin_c", "tmax_c"):
+        df.loc[t_bad, c] = np.nan
+    df.loc[sus, "rain_mm"] = np.nan
+    # the gauge is emptied only when read: after a weekend/holiday the reading holds
+    # several days of rain, so keep it only when the previous day was read too
+    read = df[["dry_bulb_c", "tmax_c", "rain_mm"]].notna().any(axis=1)
+    df.loc[~read.shift(1, freq="D").reindex(df.index, fill_value=False), "rain_mm"] = np.nan
+    t, tw = df.dry_bulb_c, df.wet_bulb_c
+    es = lambda x: 6.112 * np.exp(17.67 * x / (x + 243.5))
+    e = (es(tw) - 0.000799 * 1005.0 * (t - tw)).clip(lower=0.1)
+    td = 243.5 * np.log(e / 6.112) / (17.67 - np.log(e / 6.112))
+    out = pd.DataFrame(index=dates)
+    out["tmax"] = df.tmax_c.shift(-1, freq="D").reindex(dates)
+    out["rain"] = df.rain_mm.shift(-1, freq="D").reindex(dates)
+    out["tmin"] = df.tmin_c.reindex(dates)
+    out["td"] = td.reindex(dates)
+    out["tmean"] = (out.tmax + out.tmin) / 2
+    X = np.full((len(dates), 1, len(VARS)), np.nan, np.float32)
+    for v in ("tmax", "tmin", "tmean", "td", "rain"):
+        X[:, 0, VARS.index(v)] = out[v].to_numpy(np.float32)
+    nodes = pd.DataFrame({"id": ["SJCET"], "kind": ["sjcet"], "region": ["station"], "name": ["SJCET Palai"],
+                          "lat": [s["lat"]], "lon": [s["lon"]], "elev": [s["elev"]]})
+    return X, nodes
+
+
 def haversine(lat1, lon1, lat2, lon2):
     lat1, lon1, lat2, lon2 = map(np.radians, (lat1, lon1, lat2, lon2))
     a = np.sin((lat2 - lat1) / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2
@@ -96,15 +140,16 @@ def main():
     dates = pd.date_range(f"{y0}-01-01", f"{y1}-12-31", freq="D")
     Xp, np_ = load_power(dates)
     Xg, ng = load_gsod(dates)
-    X = np.concatenate([Xp, Xg], axis=1)
-    nodes = pd.concat([np_, ng], ignore_index=True)
+    Xs, ns = load_sjcet(dates)
+    X = np.concatenate([Xp, Xg, Xs], axis=1)
+    nodes = pd.concat([np_, ng, ns], ignore_index=True)
     nodes.index.name = "node"
     np.savez_compressed(PROC / "dataset.npz", X=X, dates=dates.strftime("%Y-%m-%d").to_numpy(), vars=np.array(VARS))
     nodes.to_csv(PROC / "nodes.csv")
     ei, ea = build_graph(nodes, CFG["graph"]["k"])
     torch.save({"edge_index": ei, "edge_attr": ea}, PROC / "graph.pt")
     json.dump({"nodes": [{"id": int(i), "kind": r.kind, "region": r.region, "lat": r.lat, "lon": r.lon,
-                          **({"name": r.name} if r.name else {})} for i, r in nodes.iterrows()],
+                          **({"name": r["name"]} if r["name"] else {})} for i, r in nodes.iterrows()],
                "edges": ei.T.tolist()}, open(OUTS / "graph.json", "w"))
 
     print("X", X.shape, "| nodes", nodes.kind.value_counts().to_dict(), "| edges", ei.shape[1])
@@ -113,7 +158,8 @@ def main():
     miss = np.isnan(X).mean(axis=0)
     print("missing fraction per var (power nodes):", dict(zip(VARS, miss[: len(np_)].mean(0).round(3))))
     print("missing fraction per var (gsod nodes):", dict(zip(VARS, miss[len(np_):].mean(0).round(3))))
-    print(ng[["id", "name", "lat", "lon", "elev"]].to_string(index=False))
+    print(pd.concat([ng, ns])[["id", "name", "lat", "lon", "elev"]].to_string(index=False))
+    print("SJCET observed days per var:", dict(zip(VARS, (~np.isnan(Xs[:, 0])).sum(0))))
 
 
 if __name__ == "__main__":

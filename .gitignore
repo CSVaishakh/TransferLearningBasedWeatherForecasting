@@ -23,3 +23,11 @@ model/outputs/
 .venv/
 __pycache__/
 *.log
+
+# Digitization working data (page renders, transcripts, totals) and the assembled register
+/digitization/work/
+/data/
+
+# Frontend build artefacts
+node_modules/
+dist/

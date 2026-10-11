@@ -37,7 +37,7 @@ class Data:
         self.local = int(np.flatnonzero(self.nodes.id == CFG["local"]["node_id"])[0])
         self.is_power = (self.nodes.kind == "power").to_numpy()
         self.is_fine = (self.nodes.region == "fine").to_numpy() | (self.nodes.region == "sjcet").to_numpy()
-        self.is_station = (self.nodes.kind == "gsod").to_numpy()
+        self.is_station = self.nodes.kind.isin(["gsod", "sjcet"]).to_numpy()
 
         ri = self.vars.index("rain")
         self.rain_raw = X[:, :, ri].copy()

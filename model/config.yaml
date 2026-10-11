@@ -1,6 +1,6 @@
 # Shared settings for the model track. See docs/model-guide.md.
 
-sjcet: {lat: 9.727, lon: 76.727}          # verify on a map
+sjcet: {lat: 9.727, lon: 76.727, elev: 60}   # Choondacherry; elevation approximate (m)
 
 regions:
   india:  {north: 37, west: 68, south: 6, east: 98}   # stage-1 coarse nodes (1.0°)
@@ -54,7 +54,8 @@ gsod:
 graph:
   k: 8
 
-# Stand-in for SJCET until the register is digitized: a real station held out of
-# stages 1-2 and used as the data-poor local target in stage 3.
+# The data-poor local target: held out of stages 1-2, fine-tuned on in stage 3.
+# "SJCET" = the digitized register (data/sjcet/sjcet_daily.csv, Jul 2010 - Dec 2016).
+# Set to "43353099999" (COCHIN GSOD, ~50 km away) to rerun the earlier stand-in experiment.
 local:
-  node_id: "43353099999"     # COCHIN (GSOD), ~50 km from SJCET
+  node_id: "SJCET"

@@ -3,6 +3,7 @@
     uv run python predict.py 2015-07-10                 # print one forecast
     uv run python predict.py --export                   # write outputs/forecasts/<date>.json for the test period
     uv run python predict.py 2015-07-10 --run s123_f1.0_s0
+    uv run python predict.py --export --run s13_f1.0_s0  # other runs go to outputs/forecasts/<run>/
 
 `date` is the last day of input data ("issued"); the forecast is for the next day.
 """
@@ -16,6 +17,7 @@ from train import predict as run_model
 from train import stage_setup
 from wx import CFG, NREG, OUTS, RAIN, RAIN_THR, Data, WeatherGNN, load_weights, rh_from
 
+DEFAULT_RUN = "s123_f1.0_s0"
 _cache = {}
 
 
@@ -48,7 +50,7 @@ def _forecasts(run, ts):
         out.append({
             "version": 1,
             "issued": D.dates[t].strftime("%Y-%m-%d"),
-            "station": {"id": CFG["local"]["node_id"], "name": f"{node['name']} (stand-in for SJCET)",
+            "station": {"id": CFG["local"]["node_id"], "name": node["name"] if node["kind"] == "sjcet" else f"{node['name']} (stand-in for SJCET)",
                         "lat": float(node.lat), "lon": float(node.lon)},
             "model": {"name": run, "run_id": run},
             "days": [{"date": D.dates[nxt].strftime("%Y-%m-%d"),
@@ -65,7 +67,7 @@ def _forecasts(run, ts):
     return out
 
 
-def predict(date: str, model_name: str = "s123_f1.0_s0") -> dict:
+def predict(date: str, model_name: str = DEFAULT_RUN) -> dict:
     D, _, _ = _load(model_name)
     t = int(np.flatnonzero(D.dates == np.datetime64(date))[0])
     return _forecasts(model_name, [t])[0]
@@ -74,13 +76,13 @@ def predict(date: str, model_name: str = "s123_f1.0_s0") -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("date", nargs="?")
-    ap.add_argument("--run", default="s123_f1.0_s0")
+    ap.add_argument("--run", default=DEFAULT_RUN)
     ap.add_argument("--export", action="store_true")
     a = ap.parse_args()
     if a.export:
         D, _, _ = _load(a.run)
         ts = D.split_days("test")
-        dst = OUTS / "forecasts"
+        dst = OUTS / "forecasts" if a.run == DEFAULT_RUN else OUTS / "forecasts" / a.run
         dst.mkdir(parents=True, exist_ok=True)
         fc = _forecasts(a.run, ts)
         for f in fc:
