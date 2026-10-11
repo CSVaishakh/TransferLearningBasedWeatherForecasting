@@ -1,0 +1,60 @@
+# Shared settings for the model track. See docs/model-guide.md.
+
+sjcet: {lat: 9.727, lon: 76.727}          # verify on a map
+
+regions:
+  india:  {north: 37, west: 68, south: 6, east: 98}   # stage-1 coarse nodes (1.0°)
+  kerala: {north: 13, west: 74, south: 8, east: 78}   # stage-2 fine nodes (0.25°)
+
+era5:
+  dataset: derived-era5-single-levels-daily-statistics
+  years: [1990, 2025]
+  time_zone: utc+05:00
+  frequency: 1_hourly
+  # [cds variable, daily statistic, our name]
+  variables:
+    - [2m_temperature, daily_maximum, tmax]
+    - [2m_temperature, daily_minimum, tmin]
+    - [2m_temperature, daily_mean, tmean]
+    - [2m_dewpoint_temperature, daily_mean, td]
+    - [total_precipitation, daily_sum, rain]
+    - [mean_sea_level_pressure, daily_mean, mslp]
+    - [10m_u_component_of_wind, daily_mean, u10]
+    - [10m_v_component_of_wind, daily_mean, v10]
+    - [total_cloud_cover, daily_mean, tcc]
+  static: [land_sea_mask, geopotential]
+
+splits:
+  train: [1990-01-01, 2013-12-31]
+  val:   [2014-01-01, 2014-12-31]
+  test:  [2015-01-01, 2016-12-31]
+
+# NASA POWER (MERRA-2 based daily reanalysis, ~0.5°x0.625°): fast per-point API, no key.
+# Used instead of the CDS download, whose queue was too slow for the deadline.
+power:
+  years: [1990, 2025]
+  coarse_step: 1.0     # India box, outside the Kerala box
+  fine_step: 0.5       # Kerala box (POWER's native resolution is ~0.5°)
+  # [POWER parameter, our name]
+  variables:
+    - [T2M_MAX, tmax]
+    - [T2M_MIN, tmin]
+    - [T2M, tmean]
+    - [T2MDEW, td]
+    - [PRECTOTCORR, rain]
+    - [PS, ps]
+    - [U10M, u10]
+    - [V10M, v10]
+    - [CLOUD_AMT, tcc]
+
+gsod:
+  min_coverage_pct: 50
+  exclude: ["43372099999"]   # Thiruvananthapuram Intl: 3 km from 43371099999, keep one
+
+graph:
+  k: 8
+
+# Stand-in for SJCET until the register is digitized: a real station held out of
+# stages 1-2 and used as the data-poor local target in stage 3.
+local:
+  node_id: "43353099999"     # COCHIN (GSOD), ~50 km from SJCET

@@ -1,8 +1,25 @@
-Dataset/*
-
-.venv/
-
-# Fetched and derived weather data — regenerable via ./request.sh + merge.py
-data/
-
+# Datasets and reference material (kept locally, not in git)
+Dataset/
 About/
+model/raw/
+model/processed/
+digitization/eval/
+
+# Model outputs: checkpoints, predictions, results
+model/outputs/
+
+# Data file types anywhere in the repo
+*.csv
+*.npz
+*.npy
+*.nc
+*.grib
+*.pt
+*.pth
+*.zip
+*.tar.gz
+
+# Environments, Python caches and run logs
+.venv/
+__pycache__/
+*.log

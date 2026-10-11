@@ -1,0 +1,32 @@
+[project]
+name = "sjcet-forecast-model"
+version = "0.1.0"
+description = "Staged transfer-learning GNN for SJCET weather forecasting"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "cdsapi>=0.7.2",
+    "xarray>=2024.6",
+    "netcdf4>=1.7",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyarrow>=16",
+    "pyyaml>=6",
+    "torch>=2.4",
+    "torch-geometric>=2.8.0.post1",
+    "scikit-learn>=1.9.1",
+    "xgboost>=3.2.0",
+    "matplotlib>=3.11.2",
+    "tqdm>=4.70.1",
+]
+
+[tool.uv]
+package = false
+
+# CPU-only PyTorch: the laptop's AMD GPU cannot run CUDA
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
