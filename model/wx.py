@@ -16,8 +16,9 @@ PROC, OUTS = HERE / "processed", HERE / "outputs"
 K = 7                                  # input window (days)
 TARGETS = ["tmax", "tmin", "rain", "tmean", "td"]  # regression targets; + rain occurrence (>= RAIN_THR mm)
 NAMES = ["tmax_c", "tmin_c", "rain", "tmean_c", "td_c"]
-NREG = len(TARGETS)                    # outputs [:NREG] regression, [NREG] rain logit
-NOUT = NREG + 1
+NREG = len(TARGETS)                    # per lead day: [:NREG] regression, [NREG] rain logit
+NOUT = NREG + 1                        # outputs per lead day
+H = int(CFG.get("horizon", 1))         # lead days t+1 .. t+H; the decoder emits H * NOUT values per node
 RAIN = TARGETS.index("rain")
 RAIN_THR = 2.5                         # IMD rainy-day threshold
 
@@ -62,6 +63,26 @@ class Data:
         doy = self.dates.dayofyear.to_numpy()
         self.doy = np.stack([np.sin(2 * np.pi * doy / 365.25), np.cos(2 * np.pi * doy / 365.25)], 1).astype(np.float32)
         self.in_dim = 2 * K * self.V + self.static.shape[1] + 2
+        self.fill = None  # [367, V] normalised day-of-year climatology of the local node (set_local_clim)
+
+    def set_local_clim(self, visible, halfwidth=15, min_n=5):
+        """Day-of-year climatology of the local node from its *visible training* observations
+        (normalised, rain as log1p), smoothed over +-halfwidth days. Once set, batch() feeds it in
+        place of the local node's missing inputs; the mask channel still says "missing"."""
+        a, b = (pd.Timestamp(s) for s in CFG["splits"]["train"])
+        in_train = np.asarray((self.dates >= a) & (self.dates <= b))
+        n = self.local
+        ok = self.mask[:, n] & (visible[:, n] & in_train)[:, None]                 # [T, V]
+        doy = np.asarray(self.dates.dayofyear)
+        clim = np.zeros((367, self.V), np.float32)
+        for d in range(1, 367):
+            near = np.minimum(np.abs(doy - d), 366 - np.abs(doy - d)) <= halfwidth
+            for v in range(self.V):
+                sel = near & ok[:, v]
+                if sel.sum() >= min_n:
+                    clim[d, v] = self.Xn[sel, n, v].mean()
+        self.fill = clim
+        return int(ok.any(1).sum())
 
     def restrict(self, sub, edge_index, edge_attr):
         """Keep only nodes `sub` (e.g. the local station's k-hop neighbourhood) with a relabelled graph."""
@@ -75,10 +96,10 @@ class Data:
         self.edge_index, self.edge_attr = edge_index, edge_attr
 
     def split_days(self, split):
-        """Indices t ("today") whose window and next day lie inside the split period."""
+        """Indices t ("today") whose window and all H lead days lie inside the split period."""
         a, b = (pd.Timestamp(s) for s in CFG["splits"][split])
-        t = np.arange(K - 1, self.T - 1)
-        return t[(self.dates[t - K + 1] >= a) & (self.dates[t + 1] <= b)]
+        t = np.arange(K - 1, self.T - H)
+        return t[(self.dates[t - K + 1] >= a) & (self.dates[t + H] <= b)]
 
     def batch(self, ts, visible):
         """Inputs/targets for days ts. visible: bool [T, N], which observations exist for this stage."""
@@ -87,6 +108,10 @@ class Data:
         vis = visible[win][..., None]                                       # [B, K, N, 1]
         x = self.Xn[win] * vis
         m = (self.mask[win] & vis).astype(np.float32)
+        if self.fill is not None:  # local node: missing inputs -> its day-of-year climatology
+            n = self.local
+            cl = self.fill[np.asarray(self.dates.dayofyear)[win]]                 # [B, K, V]
+            x[:, :, n, :] = np.where(m[:, :, n, :] > 0, x[:, :, n, :], cl)
         B = len(ts)
         x = x.transpose(0, 2, 1, 3).reshape(B, self.N, K * self.V)
         m = m.transpose(0, 2, 1, 3).reshape(B, self.N, K * self.V)
@@ -94,16 +119,17 @@ class Data:
         dy = np.broadcast_to(self.doy[ts + 1][:, None], (B, self.N, 2))
         feats = np.concatenate([x, m, st, dy], -1)
 
-        nxt = ts + 1
-        vis_y = visible[nxt][..., None]
-        y = self.Xn[nxt][:, :, self.ti]
+        nxt = ts[:, None] + np.arange(1, H + 1)[None]                    # [B, H] lead days
+        vis_y = visible[nxt][..., None]                                     # [B, H, N, 1]
+        y = self.Xn[nxt][..., self.ti]
         rain = self.rain_raw[nxt]
         occ = (np.nan_to_num(rain) >= RAIN_THR).astype(np.float32)[..., None]
-        y = np.concatenate([y, occ], -1)
-        ym = self.mask[nxt][:, :, self.ti]
+        y = np.concatenate([y, occ], -1)                                    # [B, H, N, NOUT]
+        ym = self.mask[nxt][..., self.ti]
         ym = np.concatenate([ym, ym[..., RAIN:RAIN + 1]], -1) & vis_y
+        flat = lambda a: a.transpose(0, 2, 1, 3).reshape(B, self.N, H * NOUT)  # node-major, then lead day
         f = lambda a: torch.from_numpy(np.ascontiguousarray(a, dtype=np.float32))
-        return f(feats), f(y), f(ym)
+        return f(feats), f(flat(y)), f(flat(ym))
 
     def denorm(self, y):
         """[..., NREG] normalised targets -> physical units (degC, mm for rain)."""
@@ -123,28 +149,33 @@ class WeatherGNN(nn.Module):
             nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 2 * hidden), nn.GELU(),
                           nn.Linear(2 * hidden, hidden)) for _ in range(layers))
         self.drop = nn.Dropout(dropout)
-        self.dec = nn.Sequential(nn.Linear(hidden, hidden), nn.GELU(), nn.Linear(hidden, NOUT))
+        self.dec = nn.Sequential(nn.Linear(hidden, hidden), nn.GELU(), nn.Linear(hidden, H * NOUT))
 
     def forward(self, x, edge_index, edge_attr):
         h = self.enc(x)
         for conv, norm, ff in zip(self.convs, self.norms, self.ffs):
             h = h + self.drop(conv(norm(h), edge_index, edge_attr))
             h = h + self.drop(ff(h))
-        return self.dec(h)  # [:, :NREG] regression (normalised), [:, NREG] rain logit
+        return self.dec(h)  # [:, H * NOUT]; block d = lead day d+1: [:NREG] regression (normalised), [NREG] rain logit
 
 
 def load_weights(model, state):
-    """Load a checkpoint, also one saved with fewer regression targets (older runs predicted
-    tmax/tmin/rain only): existing outputs are copied across, new target rows keep their init."""
+    """Load a checkpoint, also one with a different output head: older runs predicted fewer
+    targets (tmax/tmin/rain only) and/or fewer lead days. The old lead-1 block initialises every
+    lead-day block (a warm start); targets the old head lacks keep their fresh init."""
     own = model.state_dict()
     for k in ("dec.2.weight", "dec.2.bias"):
         old = state[k]
-        if old.shape[0] != own[k].shape[0]:
-            new = own[k].clone()
-            n_old = old.shape[0] - 1                 # old regression targets
-            new[:n_old] = old[:n_old]
-            new[NREG] = old[n_old]                   # rain logit
-            state = {**state, k: new}
+        if old.shape[0] == own[k].shape[0]:
+            continue
+        per_old = NOUT if old.shape[0] % NOUT == 0 else old.shape[0]   # outputs per lead day in the checkpoint
+        n_old = per_old - 1                                               # its regression targets
+        new = own[k].clone()
+        for d in range(H):
+            o = d * NOUT
+            new[o:o + n_old] = old[:n_old]
+            new[o + NREG] = old[n_old]                                   # rain logit
+        state = {**state, k: new}
     model.load_state_dict(state)
 
 
@@ -155,8 +186,10 @@ def batch_graph(edge_index, edge_attr, B, N):
 
 
 def loss_fn(pred, y, m, w, rain_pos_weight=2.0):
-    """pred/y/m: [B*N, NOUT]; w: [B*N] per-node weight. Masked, weighted MSE + BCE."""
-    w = w[:, None]
+    """pred/y/m: [B*N, H*NOUT]; w: [B*N] per-node weight. Masked, weighted MSE + BCE,
+    pooled over lead days (each lead day counts equally)."""
+    pred, y, m = (a.reshape(-1, NOUT) for a in (pred, y, m))
+    w = w.repeat_interleave(H)[:, None]
     r = slice(0, NREG)
     reg = ((pred[:, r] - y[:, r]) ** 2 * m[:, r] * w).sum() / (m[:, r] * w).sum().clamp(min=1)
     bce = nn.functional.binary_cross_entropy_with_logits(

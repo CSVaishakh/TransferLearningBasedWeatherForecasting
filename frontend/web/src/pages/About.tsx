@@ -5,7 +5,7 @@ const STEPS = [
   { t: 'Digitize', d: 'Every page transcribed, then checked against monthly rain totals and physical rules' },
   { t: 'Pretrain', d: 'Graph neural network learns regional weather from 36 years of reanalysis and NOAA stations' },
   { t: 'Fine-tune', d: 'The pretrained network is adapted to the SJCET register (2010–2013)' },
-  { t: 'Forecast', d: 'Next-day max/min temperature and rain at SJCET, scored on 2015–2016' },
+  { t: 'Forecast', d: 'Max/min temperature and rain at SJCET up to 6 days ahead: scored on 2015–2016, and live from the latest data' },
 ]
 
 export default function About() {
@@ -44,7 +44,7 @@ export default function About() {
           <div className="card-head"><h2>Model</h2></div>
           <ul className="muted" style={{ margin: 0, paddingLeft: 18 }}>
             <li>1,062 reanalysis grid nodes (1° over India, 0.5° over Kerala), 6 NOAA stations and the SJCET register, linked to their 8 nearest neighbours</li>
-            <li>Each node sees its last 7 days of 9 variables; 4 rounds of attention-based message passing</li>
+            <li>Each node sees its last 7 days of 9 variables; 4 rounds of attention-based message passing; one output block per lead day (1–6 days ahead)</li>
             <li>Stage 1: reanalysis only · Stage 2: + NOAA stations · Stage 3: SJCET</li>
             <li>Trained 1990–2013, validated on 2014, tested on 2015–2016</li>
           </ul>

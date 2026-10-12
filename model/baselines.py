@@ -2,12 +2,12 @@
 
     uv run python baselines.py [--fractions 0.1 0.25 0.5 1.0] [--seeds 0 1 2]
 
-persistence    tomorrow = today (observed at the station)
+persistence    day t+d = today (observed at the station)
 climatology    day-of-year mean of the station's training months, smoothed +-15 days
 reanalysis     NASA POWER value at the nearest grid node on the target day (not a forecast:
                shows how far gridded reanalysis is from the station)
-xgboost        station's last 7 days + nearest grid node's last 7 days + day of year
-Writes outputs/baselines.json (one entry per model / fraction / seed).
+xgboost        station's last 7 days + nearest grid node's last 7 days + day of year, one model per lead day
+Writes outputs/baselines.json (one entry per model / fraction / seed, metrics per lead day).
 """
 import argparse
 import json
@@ -17,7 +17,7 @@ import pandas as pd
 import xgboost as xgb
 
 from train import days_for, stage_setup
-from wx import CFG, K, NREG, OUTS, RAIN, Data, metrics
+from wx import CFG, H, K, NREG, OUTS, RAIN, Data, metrics
 
 
 def physical(D):
@@ -64,40 +64,46 @@ def main():
     P = physical(D)
     vis_all, w3, _, _ = stage_setup(D, 3, 1.0, 0)
     te = days_for(D, "test", vis_all, w3)
-    obs = P[te + 1, loc]
     a_, b_ = (pd.Timestamp(s) for s in CFG["splits"]["train"])
     in_train = (D.dates >= a_) & (D.dates <= b_)
+    leads = range(1, H + 1)
 
     rows = []
 
-    def add(name, frac, seed, pred, prob=None):
-        rows.append({"model": name, "local_fraction": frac, "seed": seed, "metrics": metrics(pred, obs, prob)})
-        m = rows[-1]["metrics"]
-        print(f"{name:12s} f={frac:<5} s={seed}  tmax {m['tmax_c']['rmse']:.2f}  tmin {m['tmin_c']['rmse']:.2f}"
-              f"  rain {m['rain']['rmse']:.2f}  RH {m['rh_pct']['rmse']:.1f}  rain-acc {m['rain']['accuracy']:.2f}",
-              flush=True)
+    def add(name, frac, seed, preds):
+        """preds: one [len(te), NREG] array per lead day. `metrics` = lead day 1."""
+        by_lead = [metrics(p, P[te + d, loc]) for d, p in zip(leads, preds)]
+        rows.append({"model": name, "local_fraction": frac, "seed": seed, "metrics": by_lead[0],
+                     "metrics_by_lead": by_lead})
+        print(f"{name:12s} f={frac:<5} s={seed}  " + "  ".join(
+            f"d{d}: tmax {m['tmax_c']['rmse']:.2f} tmin {m['tmin_c']['rmse']:.2f} rain {m['rain']['rmse']:.2f}"
+            for d, m in zip(leads, by_lead)), flush=True)
 
-    add("persistence", 1.0, 0, P[te, loc])
-    add("reanalysis", 1.0, 0, P[te + 1, near])
+    add("persistence", 1.0, 0, [P[te, loc] for d in leads])
+    add("reanalysis", 1.0, 0, [P[te + d, near] for d in leads])
     for frac in a.fractions:
         for seed in a.seeds if frac < 1 else [0]:
             vis, _, _, _ = stage_setup(D, 3, frac, seed)
             train_days = np.flatnonzero(vis[:, loc] & in_train)
-            add("climatology", frac, seed, climatology(P[:, loc], D.dates, train_days, te))
-            tr = days_for(D, "train", vis, w3)
-            tr = tr[vis[tr + 1, loc]]
-            Xtr, Xte = features(D, tr, loc, near), features(D, te, loc, near)
-            pred = np.full((len(te), NREG), np.nan)
-            for j in range(NREG):
-                y = P[tr + 1, loc, j]
-                y = np.log1p(y) if j == RAIN else y
-                ok = ~np.isnan(y)
-                m = xgb.XGBRegressor(n_estimators=300, max_depth=5, learning_rate=0.05, subsample=0.8,
-                                     colsample_bytree=0.8, random_state=seed, n_jobs=8)
-                m.fit(Xtr[ok], y[ok])
-                p = m.predict(Xte)
-                pred[:, j] = np.clip(np.expm1(p), 0, None) if j == RAIN else p
-            add("xgboost", frac, seed, pred)
+            add("climatology", frac, seed, [climatology(P[:, loc], D.dates, train_days, te + d - 1) for d in leads])
+            tr_all = days_for(D, "train", vis, w3)
+            Xte = features(D, te, loc, near)
+            preds = []
+            for d in leads:  # one model per lead day and target
+                tr = tr_all[vis[tr_all + d, loc]]
+                Xtr = features(D, tr, loc, near)
+                pred = np.full((len(te), NREG), np.nan)
+                for j in range(NREG):
+                    y = P[tr + d, loc, j]
+                    y = np.log1p(y) if j == RAIN else y
+                    ok = ~np.isnan(y)
+                    m = xgb.XGBRegressor(n_estimators=300, max_depth=5, learning_rate=0.05, subsample=0.8,
+                                         colsample_bytree=0.8, random_state=seed, n_jobs=8)
+                    m.fit(Xtr[ok], y[ok])
+                    p = m.predict(Xte)
+                    pred[:, j] = np.clip(np.expm1(p), 0, None) if j == RAIN else p
+                preds.append(pred)
+            add("xgboost", frac, seed, preds)
     (OUTS / "baselines.json").write_text(json.dumps(rows, indent=1))
 
 

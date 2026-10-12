@@ -54,6 +54,9 @@ gsod:
 graph:
   k: 8
 
+# Forecast lead days: the decoder predicts t+1 .. t+horizon from the same 7-day window.
+horizon: 6
+
 # The data-poor local target: held out of stages 1-2, fine-tuned on in stage 3.
 # "SJCET" = the digitized register (data/sjcet/sjcet_daily.csv, Jul 2010 - Dec 2016).
 # Set to "43353099999" (COCHIN GSOD, ~50 km away) to rerun the earlier stand-in experiment.

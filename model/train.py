@@ -22,7 +22,7 @@ import pandas as pd
 import torch
 from torch_geometric.utils import k_hop_subgraph
 
-from wx import CFG, NOUT, NREG, OUTS, RAIN, Data, WeatherGNN, batch_graph, load_weights, loss_fn, metrics
+from wx import CFG, H, NOUT, NREG, OUTS, RAIN, Data, WeatherGNN, batch_graph, load_weights, loss_fn, metrics
 
 
 def stage_setup(D, stage, fraction, seed):
@@ -54,11 +54,11 @@ def stage_setup(D, stage, fraction, seed):
 
 
 def days_for(D, split, vis, w):
-    """Days whose next day has at least one weighted, visible target."""
+    """Days with at least one weighted, visible target on any of the H lead days."""
     ts = D.split_days(split)
-    nxt = ts + 1
-    tgt = D.mask[nxt][:, :, D.ti].any(-1) & vis[nxt] & (w > 0)[None]
-    return ts[tgt.any(1)]
+    leads = ts[:, None] + np.arange(1, H + 1)[None]                     # [B, H]
+    tgt = D.mask[leads][..., D.ti].any(-1) & vis[leads] & (w > 0)[None, None]
+    return ts[tgt.any((1, 2))]
 
 
 @torch.no_grad()
@@ -69,21 +69,24 @@ def predict(model, D, ts, vis, ei, ea, bs=32):
         x, _, _ = D.batch(ts[i:i + bs], vis)
         B = x.shape[0]
         e, a = batch_graph(ei, ea, B, D.N)
-        preds.append(model(x.view(B * D.N, -1), e, a).view(B, D.N, NOUT).numpy())
-    return np.concatenate(preds)
+        preds.append(model(x.view(B * D.N, -1), e, a).view(B, D.N, H, NOUT).numpy())
+    return np.concatenate(preds)  # [B, N, H, NOUT]
 
 
 def evaluate(model, D, ts, vis, ei, ea, nodes):
-    """Metrics in physical units at the given node(s), pooled over days."""
+    """Metrics in physical units at the given node(s), pooled over days, one dict per lead day.
+    Also returns phys/obs [B, N, H, NREG] and prob [B, N, H]."""
     p = predict(model, D, ts, vis, ei, ea)
     phys = D.denorm(p[..., :NREG])
     prob = 1 / (1 + np.exp(-p[..., NREG]))
-    nxt = ts + 1
-    obs = np.stack([D.Xn[nxt][:, :, j] * D.std[j] + D.mean[j] for j in D.ti], -1)
-    obs[~D.mask[nxt][:, :, D.ti]] = np.nan
-    obs[..., RAIN] = D.rain_raw[nxt]  # NaN where missing
-    sel = lambda a: a[:, nodes].reshape(-1, *a.shape[2:])
-    return metrics(sel(phys), sel(obs), sel(prob)), phys, prob, obs
+    leads = ts[:, None] + np.arange(1, H + 1)[None]
+    obs = np.stack([D.Xn[leads][..., j] * D.std[j] + D.mean[j] for j in D.ti], -1)  # [B, H, N, NREG]
+    obs[~D.mask[leads][..., D.ti]] = np.nan
+    obs[..., RAIN] = D.rain_raw[leads]  # NaN where missing
+    obs = obs.transpose(0, 2, 1, 3)
+    sel = lambda a, d: a[:, nodes, d].reshape(-1, *a.shape[3:])
+    by_lead = [metrics(sel(phys, d), sel(obs, d), sel(prob, d)) for d in range(H)]
+    return by_lead, phys, prob, obs
 
 
 def main():
@@ -102,6 +105,8 @@ def main():
     ap.add_argument("--hidden", type=int, default=128)
     ap.add_argument("--layers", type=int, default=4)
     ap.add_argument("--eval-only", action="store_true", help="no training: evaluate --init at the current local node")
+    ap.add_argument("--clim-fill", action="store_true",
+                    help="stage 3: feed the local node's day-of-year climatology (from its visible training months) in place of missing inputs")
     a = ap.parse_args()
     defaults = {1: (12, 1e-3), 2: (10, 3e-4), 3: (25, 1e-4 if a.init else 1e-3)}
     epochs = a.epochs or defaults[a.stage][0]
@@ -120,6 +125,8 @@ def main():
         D.restrict(sub, ei_s, D.edge_attr[emask])
         vis, w = vis[:, sub], w[sub]
         print(f"stage 3 subgraph: {D.N} nodes, {ei_s.shape[1]} edges", flush=True)
+        if a.clim_fill:
+            print(f"climatology fill from {D.set_local_clim(vis)} visible training days", flush=True)
     tr, va, te = (days_for(D, s, vis, w) for s in ("train", "val", "test"))
     # stage 3: evaluate the local station on all val/test days where it has observations
     print(f"stage {a.stage} | train {len(tr)} val {len(va)} test {len(te)} days"
@@ -143,7 +150,7 @@ def main():
         B = x.shape[0]
         e, at = batch_graph(ei, ea, B, D.N)
         pred = model(x.view(B * D.N, -1), e, at)
-        return loss_fn(pred, y.view(B * D.N, NOUT), m.view(B * D.N, NOUT), wt.repeat(B))
+        return loss_fn(pred, y.view(B * D.N, H * NOUT), m.view(B * D.N, H * NOUT), wt.repeat(B))
 
     log, best, bad = [], float("inf"), 0
     rng = np.random.default_rng(a.seed)
@@ -190,18 +197,26 @@ def main():
     res = {"run_id": a.run_id, "args": vars(a), "best_val_loss": best,
            "local_node": CFG["local"]["node_id"], "n_train_days": int(len(tr)),
            "local_months": n_months, "local_months_available": n_avail}
-    res["local_val"], *_ = evaluate(model, D, va_local, vis_eval, ei, ea, [D.local])
-    res["local_test"], phys, prob, obs = evaluate(model, D, te_local, vis_eval, ei, ea, [D.local])
+    # local_val / local_test = lead day 1 (comparable with 1-day runs); *_by_lead = every lead day
+    res["horizon"] = H
+    res["local_val_by_lead"], *_ = evaluate(model, D, va_local, vis_eval, ei, ea, [D.local])
+    res["local_test_by_lead"], phys, prob, obs = evaluate(model, D, te_local, vis_eval, ei, ea, [D.local])
+    res["local_val"], res["local_test"] = res["local_val_by_lead"][0], res["local_test_by_lead"][0]
+    # pred/obs [n, H, NREG], rain_prob [n, H]; dates = lead-1 target day, issued = forecast day
     np.savez_compressed(out / "local_test_pred.npz", dates=D.dates[te_local + 1].strftime("%Y-%m-%d").to_numpy(),
+                        issued=D.dates[te_local].strftime("%Y-%m-%d").to_numpy(),
                         pred=phys[:, D.local], rain_prob=prob[:, D.local], obs=obs[:, D.local])
+    if a.stage == 3:  # live-like: the local node's own inputs hidden for the whole test period
+        vis_h = vis_eval.copy()
+        vis_h[:, D.local] = False
+        res["local_test_hidden_by_lead"] = evaluate(model, D, te_local, vis_h, ei, ea, [D.local])[0]
     if a.stage < 3:
         fine = np.flatnonzero(D.is_power & D.is_fine)
-        res["fine_grid_test"], *_ = evaluate(model, D, D.split_days("test"), vis_eval, ei, ea, fine)
+        res["fine_grid_test"] = evaluate(model, D, D.split_days("test"), vis_eval, ei, ea, fine)[0][0]
     (out / "result.json").write_text(json.dumps(res, indent=1))
-    lt = res["local_test"]
-    print("local test RMSE  tmax {:.2f}  tmin {:.2f}  rain {:.2f}  RH {:.1f} | rain acc {:.2f}".format(
-        lt["tmax_c"]["rmse"], lt["tmin_c"]["rmse"], lt["rain"]["rmse"], lt.get("rh_pct", {}).get("rmse", np.nan),
-        lt["rain"]["accuracy"]), flush=True)
+    for d, lt in enumerate(res["local_test_by_lead"], 1):
+        print("local test day {}  RMSE tmax {:.2f}  tmin {:.2f}  rain {:.2f} | rain acc {:.2f}".format(
+            d, lt["tmax_c"]["rmse"], lt["tmin_c"]["rmse"], lt["rain"]["rmse"], lt["rain"]["accuracy"]), flush=True)
 
 
 if __name__ == "__main__":

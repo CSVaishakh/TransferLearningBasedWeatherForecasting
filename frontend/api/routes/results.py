@@ -1,5 +1,6 @@
 """Model results: metrics (§5), graph (§6) and test-period predictions."""
 import numpy as np
+import pandas as pd
 from fastapi import APIRouter, HTTPException
 
 from paths import DEFAULT_MODEL, MODEL_LABELS, MODEL_OUT, RUNS, clean, read_json
@@ -26,14 +27,21 @@ def graph():
 
 
 @router.get("/results/test")
-def test_predictions(model: str = DEFAULT_MODEL):
-    """Next-day predictions vs observations at SJCET for the test period."""
+def test_predictions(model: str = DEFAULT_MODEL, lead: int = 1):
+    """Predictions vs observations at SJCET for the test period, at one lead day."""
     f = RUNS / model / "local_test_pred.npz"
     if model not in MODEL_LABELS or not f.exists():
         raise HTTPException(404, f"no test predictions for {model!r}")
     z = np.load(f, allow_pickle=True)
     pred, obs, prob = z["pred"], z["obs"], z["rain_prob"]
+    if pred.ndim == 3:  # [n, H, targets]
+        if not 1 <= lead <= pred.shape[1]:
+            raise HTTPException(400, f"lead must be 1..{pred.shape[1]}")
+        pred, obs, prob = pred[:, lead - 1], obs[:, lead - 1], prob[:, lead - 1]
+        dates = (pd.to_datetime(z["issued"]) + pd.Timedelta(days=lead)).strftime("%Y-%m-%d")
+    else:
+        dates = z["dates"]
     return [{"date": str(d), "rain_prob": clean(round(float(p), 3)),
              **{f"pred_{t}": clean(round(float(pred[i, j]), 2)) for j, t in enumerate(TARGETS)},
              **{f"obs_{t}": clean(round(float(obs[i, j]), 2)) for j, t in enumerate(TARGETS)}}
-            for i, (d, p) in enumerate(zip(z["dates"], prob))]
+            for i, (d, p) in enumerate(zip(dates, prob))]

@@ -13,16 +13,20 @@ const TARGETS: { key: Target; label: string; unit: string; metric: string; col: 
   { key: 'rain', label: 'Rainfall', unit: 'mm', metric: 'rain', col: 'rain_mm' },
 ]
 const STRATEGY_COLOURS: Record<string, string> = {
-  'GNN from scratch (local only)': '#2f6fe4',
-  'GNN pretrained 1→3': '#188a4b',
-  'GNN pretrained 1→2→3': '#e07a1f',
+  'GNN, SJCET only (no pretraining)': '#2f6fe4',
+  'GNN, Region → SJCET (1→3)': '#188a4b',
+  'GNN, Region → Stations → SJCET (1→2→3)': '#e07a1f',
+  'GNN, Region → Stations → SJCET + SJCET climatology': '#b45309',
+  'GNN, SJCET only + SJCET climatology': '#0e7490',
   climatology: '#d6392f',
   xgboost: '#8b5cf6',
 }
 const RUNS: Record<string, string> = {
-  's123_f1.0_s0': 'GNN pretrained 1→2→3',
-  's13_f1.0_s0': 'GNN pretrained 1→3',
-  'scratch_f1.0_s0': 'GNN from scratch (SJCET only)',
+  's123_f1.0_s0': 'GNN, Region → Stations → SJCET (1→2→3)',
+  's13_f1.0_s0': 'GNN, Region → SJCET (1→3)',
+  'scratch_f1.0_s0': 'GNN, SJCET only (no pretraining)',
+  's123c_f1.0_s0': 'GNN, Region → Stations → SJCET + SJCET climatology',
+  'scratchc_f1.0_s0': 'GNN, SJCET only + SJCET climatology',
 }
 const pretty = (n: string) => n.replace('(local only)', '(SJCET only)').replace(/^\w/, (c) => c.toUpperCase())
 
@@ -39,14 +43,16 @@ function TargetPicker({ value, onChange }: { value: Target; onChange: (t: Target
 }
 
 /** FR-M1: models x metrics, best per column in bold green; baselines grouped separately. */
-function MetricsTable({ m }: { m: Metrics }) {
+const atLead = (mod: Metrics['models'][number], lead: number) => mod.by_lead?.[lead - 1] ?? mod.metrics
+
+function MetricsTable({ m, lead }: { m: Metrics; lead: number }) {
   const cols = [
     { t: 'tmax_c', k: 'rmse', h: 'Max RMSE', u: '°C' }, { t: 'tmax_c', k: 'bias', h: 'Max bias', u: '°C' },
     { t: 'tmin_c', k: 'rmse', h: 'Min RMSE', u: '°C' }, { t: 'tmin_c', k: 'bias', h: 'Min bias', u: '°C' },
     { t: 'rain', k: 'rmse', h: 'Rain RMSE', u: 'mm' }, { t: 'rain', k: 'mae', h: 'Rain MAE', u: 'mm' },
     { t: 'rain', k: 'accuracy', h: 'Rain/no-rain', u: '' }, { t: 'tmax_c', k: 'n', h: 'Days', u: '' },
   ]
-  const val = (mod: Metrics['models'][number], c: (typeof cols)[number]) => mod.metrics[c.t]?.[c.k]
+  const val = (mod: Metrics['models'][number], c: (typeof cols)[number]) => atLead(mod, lead)[c.t]?.[c.k]
   const best = cols.map((c) => {
     if (c.k === 'n') return undefined
     const vs = m.models.map((mod) => val(mod, c)).filter((v): v is number => v !== undefined)
@@ -85,14 +91,15 @@ function MetricsTable({ m }: { m: Metrics }) {
 }
 
 /** FR-M2: RMSE vs fraction of SJCET training months, mean ± std over seeds. */
-function Ablation({ m, target }: { m: Metrics; target: Target }) {
+function Ablation({ m, target, lead }: { m: Metrics; target: Target; lead: number }) {
   const key = `${target}_rmse`
-  const models = [...new Set(m.ablation.map((a) => a.model))]
-  const fractions = [...new Set(m.ablation.map((a) => a.local_fraction))].sort((a, b) => a - b)
+  const rows = m.ablation.filter((a) => (a.lead ?? 1) === lead)
+  const models = [...new Set(rows.map((a) => a.model))]
+  const fractions = [...new Set(rows.map((a) => a.local_fraction))].sort((a, b) => a - b)
   const data = fractions.map((f) => {
     const row: Record<string, number | string | number[]> = { fraction: `${Math.round(f * 100)}%` }
     for (const mod of models) {
-      const v = m.ablation.filter((a) => a.model === mod && a.local_fraction === f).map((a) => Number(a[key]))
+      const v = rows.filter((a) => a.model === mod && a.local_fraction === f).map((a) => Number(a[key]))
       if (!v.length) continue
       const mu = v.reduce((s, x) => s + x, 0) / v.length
       const sd = Math.sqrt(v.reduce((s, x) => s + (x - mu) ** 2, 0) / v.length)
@@ -101,7 +108,8 @@ function Ablation({ m, target }: { m: Metrics; target: Target }) {
     }
     return row
   })
-  const persistence = m.models.find((x) => x.name === 'persistence')?.metrics[TARGETS.find((t) => t.key === target)!.metric]?.rmse
+  const pm = m.models.find((x) => x.name === 'persistence')
+  const persistence = pm ? atLead(pm, lead)[TARGETS.find((t) => t.key === target)!.metric]?.rmse : undefined
   const unit = TARGETS.find((t) => t.key === target)!.unit
   return (
     <div style={{ height: 320 }}>
@@ -121,6 +129,59 @@ function Ablation({ m, target }: { m: Metrics; target: Target }) {
           ))}
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  )
+}
+
+const LEAD_MODELS: Record<string, string> = {
+  'GNN, Region → Stations → SJCET (1→2→3)': '#e07a1f',
+  'GNN, Region → SJCET (1→3)': '#188a4b',
+  'GNN, SJCET only (no pretraining)': '#2f6fe4',
+  'GNN, Region → Stations → SJCET + SJCET climatology': '#b45309',
+  'GNN, SJCET only + SJCET climatology': '#0e7490',
+  persistence: '#6b7a92',
+  climatology: '#d6392f',
+  xgboost: '#8b5cf6',
+}
+
+/** RMSE vs lead day: how fast skill decays, and from which lead day the GNN beats persistence. */
+function LeadTime({ m, target, hidden = false }: { m: Metrics; target: Target; hidden?: boolean }) {
+  const t = TARGETS.find((x) => x.key === target)!
+  const H = m.horizon ?? 1
+  // hidden = live-like test: GNNs scored with SJCET's own inputs hidden; of the baselines only
+  // climatology needs no recent SJCET reading, so it is the fair reference there
+  const models = m.models.filter((x) => x.name in LEAD_MODELS && (hidden ? (x.group === 'gnn' ? x.by_lead_hidden : x.name === 'climatology') : x.by_lead))
+  const series = (x: Metrics['models'][number]) => (hidden && x.group === 'gnn' ? x.by_lead_hidden : x.by_lead)
+  const data = Array.from({ length: H }, (_, d) => Object.fromEntries([['lead', `Day ${d + 1}`],
+    ...models.map((x) => [x.name, series(x)?.[d]?.[t.metric]?.rmse ?? null])]))
+  return (
+    <div style={{ height: 300 }}>
+      <ResponsiveContainer>
+        <LineChart data={data} margin={{ top: 8, right: 8, left: -4, bottom: 0 }}>
+          <CartesianGrid stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="lead" />
+          <YAxis domain={['auto', 'auto']} unit={` ${t.unit}`} width={60} />
+          <Tooltip formatter={(v, n) => [`${Number(v).toFixed(2)} ${t.unit}`, pretty(String(n))]} />
+          <Legend formatter={(n) => pretty(String(n))} />
+          {models.map((x) => (
+            <Line key={x.name} dataKey={x.name} stroke={LEAD_MODELS[x.name]} strokeWidth={x.group === 'gnn' ? 2.5 : 1.5}
+              strokeDasharray={x.group === 'gnn' ? undefined : '5 4'} dot={{ r: 4 }} isAnimationActive={false} />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function LeadPicker({ value, onChange, horizon }: { value: number; onChange: (l: number) => void; horizon: number }) {
+  if (horizon < 2) return null
+  return (
+    <div className="chips" role="radiogroup" aria-label="Lead day">
+      {Array.from({ length: horizon }, (_, i) => i + 1).map((l) => (
+        <button key={l} className="chip" role="radio" aria-checked={value === l} aria-pressed={value === l} onClick={() => onChange(l)}>
+          Day {l}
+        </button>
+      ))}
     </div>
   )
 }
@@ -187,37 +248,62 @@ export default function Results() {
   const metrics = useApi(api.metrics, [])
   const [target, setTarget] = useState<Target>('tmax')
   const [run, setRun] = useState('s123_f1.0_s0')
-  const test = useApi(() => api.testPredictions(run), [run])
+  const [lead, setLead] = useState(1)
+  const horizon = metrics.data?.horizon ?? 1
+  const test = useApi(() => api.testPredictions(run, lead), [run, lead])
   const period = useMemo(() => metrics.data?.test_period.join(' to '), [metrics.data])
   return (
     <>
       <header className="page-head">
         <div>
           <h1>Does pretraining help?</h1>
-          <p>Next-day forecasts at SJCET, scored on the held-out test period {period ?? '2015–2016'}</p>
+          <p>Forecasts at SJCET up to {horizon} day{horizon > 1 ? 's' : ''} ahead, scored on the held-out test period {period ?? '2015–2016'}</p>
         </div>
-        <TargetPicker value={target} onChange={setTarget} />
+        <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
+          <TargetPicker value={target} onChange={setTarget} />
+          <LeadPicker value={lead} onChange={setLead} horizon={horizon} />
+        </div>
       </header>
 
+      {horizon > 1 && (
+        <section className="card" style={{ marginBottom: 20 }}>
+          <div className="card-head"><h2>Error vs lead time</h2></div>
+          <p className="takeaway">Errors grow with lead time. Persistence ("same as today") gets worse quickly, so the further ahead, the more the model's regional knowledge pays off.</p>
+          <Load q={metrics} height={300}>{(m) => <LeadTime m={m} target={target} />}</Load>
+        </section>
+      )}
+
+      {metrics.data?.models.some((x) => x.by_lead_hidden) && (
+        <section className="card" style={{ marginBottom: 20 }}>
+          <div className="card-head"><h2>Live-like test <small>(SJCET's own readings hidden)</small></h2></div>
+          <p className="takeaway">
+            The live forecast has no recent SJCET readings, since the register stops in 2016. Here every model is scored on
+            2015–2016 with SJCET's inputs hidden. Models marked "+ SJCET climatology" are fed Palai's typical value for the
+            day of year (learned from the 2010–2013 register) in place of the missing readings.
+          </p>
+          <Load q={metrics} height={300}>{(m) => <LeadTime m={m} target={target} hidden />}</Load>
+        </section>
+      )}
+
       <section className="card">
-        <div className="card-head"><h2>Error vs amount of SJCET data</h2></div>
+        <div className="card-head"><h2>Error vs amount of SJCET data <small>(day {lead})</small></h2></div>
         <p className="takeaway">
           Pretrained models learn SJCET from far less data: with 10% of its training months they already beat a model trained
           from scratch on all of it. On temperature, simple persistence ("tomorrow = today") is still hard to beat, because the
           register's readings change very little from day to day.
         </p>
-        <Load q={metrics} height={320}>{(m) => <Ablation m={m} target={target} />}</Load>
+        <Load q={metrics} height={320}>{(m) => <Ablation m={m} target={target} lead={lead} />}</Load>
       </section>
 
       <section className="card mt">
-        <div className="card-head"><h2>All models <small>(all training months)</small></h2></div>
+        <div className="card-head"><h2>All models <small>(all training months, day {lead})</small></h2></div>
         <p className="takeaway">Lower RMSE is better; best per column in green. Persistence can only be scored on days that follow a reading, so it covers fewer days.</p>
-        <Load q={metrics} height={260}>{(m) => <MetricsTable m={m} />}</Load>
+        <Load q={metrics} height={260}>{(m) => <MetricsTable m={m} lead={lead} />}</Load>
       </section>
 
       <section className="card mt">
         <div className="card-head" style={{ flexWrap: 'wrap' }}>
-          <h2>Forecast vs observed, test period</h2>
+          <h2>Forecast vs observed, test period <small>(day {lead})</small></h2>
           <select className="inline" value={run} onChange={(e) => setRun(e.target.value)} aria-label="Model">
             {Object.entries(RUNS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
@@ -227,7 +313,7 @@ export default function Results() {
       </section>
 
       <section className="card mt">
-        <div className="card-head"><h2>Error by season</h2></div>
+        <div className="card-head"><h2>Error by season <small>(day 1)</small></h2></div>
         <p className="takeaway">The monsoon seasons are the hardest to forecast for rain; temperatures vary least during the SW monsoon.</p>
         <Load q={metrics} height={280}>{(m) => <Seasons m={m} target={target} />}</Load>
       </section>

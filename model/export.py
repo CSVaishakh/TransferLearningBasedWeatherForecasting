@@ -11,11 +11,13 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from wx import CFG, OUTS, metrics, rh_from  # noqa: E402
+from wx import CFG, H, OUTS, metrics, rh_from  # noqa: E402
 
 FIG = OUTS / "figures"
-STRATEGIES = {"scratch": "GNN from scratch (local only)", "s13": "GNN pretrained 1→3",
-              "s123": "GNN pretrained 1→2→3"}
+STRATEGIES = {"scratch": "GNN, SJCET only (no pretraining)", "s13": "GNN, Region → SJCET (1→3)",
+              "s123": "GNN, Region → Stations → SJCET (1→2→3)",
+              # same, with SJCET's day-of-year climatology in place of its missing inputs (train.py --clim-fill)
+              "scratchc": "GNN, SJCET only + SJCET climatology", "s123c": "GNN, Region → Stations → SJCET + SJCET climatology"}
 SEASONS = {"Winter (Jan–Feb)": [1, 2], "Pre-monsoon (Mar–May)": [3, 4, 5],
            "SW monsoon (Jun–Sep)": [6, 7, 8, 9], "NE monsoon (Oct–Dec)": [10, 11, 12]}
 
@@ -50,25 +52,30 @@ def main():
     runs = load_runs()
     base = json.loads((OUTS / "baselines.json").read_text())
 
-    models = [{"name": b["model"], "group": "baseline", "metrics": b["metrics"]}
+    # `metrics` = lead day 1; `by_lead` = one metrics dict per lead day (1..H)
+    models = [{"name": b["model"], "group": "baseline", "metrics": b["metrics"],
+               "by_lead": b.get("metrics_by_lead", [b["metrics"]])}
               for b in base if b["local_fraction"] == 1.0]
-    for rid, label in [("s1", "GNN stage 1 only (zero-shot at station)"),
-                       ("s12", "GNN stages 1→2 (zero-shot at station)")]:
-        if rid in runs:  # these checkpoints predate the tmean/td outputs, so only tmax/tmin/rain are meaningful
-            m = {k: v for k, v in runs[rid]["local_test"].items() if k in ("tmax_c", "tmin_c", "rain")}
-            models.append({"name": label, "group": "gnn", "metrics": m})
-    for key, label in STRATEGIES.items():
-        rid = f"{key}_f1.0_s0"
+    gnn = [(rid, label) for rid, label in [("s1", "GNN, Region only (1; no SJCET data)"),
+                                           ("s12", "GNN, Region → Stations (1→2; no SJCET data)")]]
+    gnn += [(f"{key}_f1.0_s0", label) for key, label in STRATEGIES.items()]
+    for rid, label in gnn:
         if rid in runs:
-            models.append({"name": label, "group": "gnn", "metrics": runs[rid]["local_test"]})
+            r = runs[rid]
+            models.append({"name": label, "group": "gnn", "metrics": r["local_test"],
+                           "by_lead": r.get("local_test_by_lead", [r["local_test"]]),
+                           # live-like: SJCET's own inputs hidden for the whole test period
+                           **({"by_lead_hidden": r["local_test_hidden_by_lead"]} if "local_test_hidden_by_lead" in r else {})})
 
-    ablation = [{"model": b["model"], "local_fraction": b["local_fraction"], "seed": b["seed"], **flat(b["metrics"])}
-                for b in base if b["model"] in ("xgboost", "climatology")]
+    ablation = [{"model": b["model"], "local_fraction": b["local_fraction"], "seed": b["seed"], "lead": d + 1, **flat(m)}
+                for b in base if b["model"] in ("xgboost", "climatology")
+                for d, m in enumerate(b.get("metrics_by_lead", [b["metrics"]]))]
     for rid, r in runs.items():
         key = rid.split("_f")[0]
         if key in STRATEGIES:
-            ablation.append({"model": STRATEGIES[key], "local_fraction": r["args"]["fraction"],
-                             "seed": r["args"]["seed"], **flat(r["local_test"])})
+            for d, m in enumerate(r.get("local_test_by_lead", [r["local_test"]])):
+                ablation.append({"model": STRATEGIES[key], "local_fraction": r["args"]["fraction"],
+                                 "seed": r["args"]["seed"], "lead": d + 1, **flat(m)})
 
     by_season = []
     for key, label in STRATEGIES.items():
@@ -76,13 +83,15 @@ def main():
         if not f.exists():
             continue
         z = np.load(f, allow_pickle=True)
+        pred, obs, prob = (z[k][:, 0] if z[k].ndim > (2 if k != "rain_prob" else 1) else z[k]
+                           for k in ("pred", "obs", "rain_prob"))
         months = pd.to_datetime(z["dates"]).month
         for season, ms in SEASONS.items():
             sel = np.isin(months, ms)
-            m = metrics(z["pred"][sel], z["obs"][sel], z["rain_prob"][sel])
+            m = metrics(pred[sel], obs[sel], prob[sel])
             by_season.append({"model": label, "season": season, **flat(m)})
 
-    out = {"version": 1, "test_period": [str(d) for d in CFG["splits"]["test"]],
+    out = {"version": 1, "horizon": H, "test_period": [str(d) for d in CFG["splits"]["test"]],
            "local_station": {"id": CFG["local"]["node_id"], "name": local_name()},
            "models": models, "ablation": ablation, "by_season": by_season}
     (OUTS / "metrics.json").write_text(json.dumps(out, indent=1))
@@ -90,6 +99,7 @@ def main():
 
     # --- figures ---------------------------------------------------------------
     ab = pd.DataFrame(ablation)
+    ab = ab[ab.lead == 1] if len(ab) else ab  # figures show lead day 1
     if len(ab):
         fig, axes = plt.subplots(1, 4, figsize=(19, 4.2))
         for ax, (col, title) in zip(axes, [("tmax_rmse", "Max temp RMSE (°C)"), ("tmin_rmse", "Min temp RMSE (°C)"),
@@ -117,6 +127,8 @@ def main():
         z = np.load(f, allow_pickle=True)
         d = pd.to_datetime(z["dates"])
         pr, ob = z["pred"], z["obs"]
+        if pr.ndim == 3:  # [n, H, NREG]: plot lead day 1
+            pr, ob = pr[:, 0], ob[:, 0]
         pr = np.column_stack([pr[:, :3], rh_from(pr[:, 3], pr[:, 4])])
         ob = np.column_stack([ob[:, :3], rh_from(ob[:, 3], ob[:, 4])])
         z = {"pred": pr, "obs": ob}
@@ -132,7 +144,7 @@ def main():
             ax.set_ylabel(lab)
             ax.grid(alpha=0.3)
             ax.legend(loc="upper right", fontsize=8)
-        fig.suptitle("Next-day forecast vs observed, Cochin, pretrained GNN (1→2→3), test period")
+        fig.suptitle(f"Next-day forecast vs observed, {local_name()}, pretrained GNN (1→2→3), test period")
         fig.tight_layout()
         fig.savefig(FIG / "test_timeseries.png", dpi=150)
         plt.close(fig)
@@ -159,6 +171,9 @@ def main():
     print(pd.DataFrame([{"model": m["name"], **flat(m["metrics"])} for m in models]).round(3).to_string(index=False))
     if len(ab):
         print(ab.groupby(["model", "local_fraction"])[["tmax_rmse", "tmin_rmse", "rain_rmse"]].mean().round(3).to_string())
+    by_lead = pd.DataFrame([{"model": m["name"], "lead": d + 1, "tmax_rmse": x["tmax_c"]["rmse"], "rain_acc": x["rain"]["accuracy"]}
+                            for m in models for d, x in enumerate(m["by_lead"])])
+    print(by_lead.pivot(index="model", columns="lead", values="tmax_rmse").round(2).to_string())
 
 
 if __name__ == "__main__":

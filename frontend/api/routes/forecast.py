@@ -1,9 +1,12 @@
-"""Replay forecasts (data-contracts §4), precomputed by model/predict.py --export."""
+"""Forecasts (data-contracts §4): replay forecasts precomputed by model/predict.py --export,
+and the live forecast written by model/live.py."""
+import subprocess
+import threading
 from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 
-from paths import DEFAULT_MODEL, MODEL_LABELS, forecast_dir, read_json
+from paths import DEFAULT_MODEL, FORECASTS, MODEL_DIR, MODEL_LABELS, forecast_dir, read_json
 
 router = APIRouter()
 
@@ -48,3 +51,31 @@ def forecast_range(start: str = Query(..., alias="from"), end: str = Query(..., 
             out.append(read_json(f))
         d += timedelta(days=1)
     return out
+
+
+_live_lock = threading.Lock()
+
+
+@router.get("/forecast/live")
+def live():
+    f = FORECASTS / "live.json"
+    if not f.exists():
+        raise HTTPException(404, "no live forecast yet: run model/live.py or POST /api/forecast/live/refresh")
+    return read_json(f)
+
+
+@router.post("/forecast/live/refresh")
+def refresh_live():
+    """Fetch the latest NASA POWER/NOAA data and rerun the model (about 1-2 minutes)."""
+    if not _live_lock.acquire(blocking=False):
+        raise HTTPException(409, "a refresh is already running")
+    try:
+        r = subprocess.run(["uv", "run", "python", "-W", "ignore", "live.py"], cwd=MODEL_DIR,
+                           capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "refresh timed out")
+    finally:
+        _live_lock.release()
+    if r.returncode != 0:
+        raise HTTPException(500, f"live.py failed: {r.stderr.strip().splitlines()[-1] if r.stderr.strip() else r.returncode}")
+    return live()

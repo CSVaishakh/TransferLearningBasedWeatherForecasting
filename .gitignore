@@ -7,6 +7,7 @@ digitization/eval/
 
 # Model outputs: checkpoints, predictions, results
 model/outputs/
+model/outputs_h1/
 
 # Data file types anywhere in the repo
 *.csv
@@ -31,3 +32,6 @@ __pycache__/
 # Frontend build artefacts
 node_modules/
 dist/
+
+# start.sh logs
+.start-logs/

@@ -91,7 +91,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 15px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
@@ -270,3 +270,12 @@ td.best { font-weight: 700; color: var(--ok); }
   .grid-3, .grid-2 { grid-template-columns: 1fr; }
   .page-head h1 { font-size: 26px; }
 }
+
+/* ---------- live notice */
+.notice { display: flex; gap: 12px; align-items: flex-start; background: var(--info-soft); border-color: transparent; color: var(--text); font-size: 14px; }
+.notice svg { flex: none; margin-top: 2px; color: var(--accent); }
+.notice-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.btn:disabled { opacity: 0.6; cursor: progress; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }

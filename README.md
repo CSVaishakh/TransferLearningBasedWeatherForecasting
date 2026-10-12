@@ -2,6 +2,22 @@
 
 A deep learning approach to weather forecasting that leverages transfer learning across global meteorological monitoring networks. The core strategy is to pretrain time-series models on data-rich, long-record stations from the global NOAA Integrated Surface Database (ISD) / Global Surface Summary of the Day (GSOD) corpus, and fine-tune them on target regional networks—specifically Indian weather stations—where historical observational records are often short, sparse, or gappy.
 
+
+## Run the app (demo)
+
+From the repository root, in a WSL/Linux terminal:
+
+```bash
+./start.sh            # starts the API (port 8000) and the web app, opens http://localhost:5173
+./start.sh --refresh  # same, but first fetches the latest data and remakes today's live forecast (needs internet, ~1 min)
+```
+
+Press **Ctrl+C** to stop. The first run installs dependencies, which takes a few minutes; after that it starts in about 10 seconds.
+Needs `uv` and Node.js. Logs go to `.start-logs/`.
+
+The app only *shows* results that are already on disk (`data/sjcet/sjcet_daily.csv`, `model/outputs/`); it never trains.
+To rebuild those: `cd digitization && uv run python assemble.py` (dataset), `cd model && ./run_all.sh` (all models, several hours on CPU).
+
 ---
 
 ## Data

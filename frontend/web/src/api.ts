@@ -12,6 +12,7 @@ export interface Observed {
 
 export interface ForecastDay {
   date: string
+  lead_days?: number
   tmax_c: number
   tmin_c: number
   tmean_c: number
@@ -23,8 +24,20 @@ export interface ForecastDay {
   observed?: Observed
 }
 
+export interface RecentDay {
+  date: string
+  tmax_c: number | null
+  tmin_c: number | null
+  rain_mm: number | null
+}
+
 export interface Forecast {
   version: number
+  mode?: 'live'
+  generated?: string
+  data_through?: string
+  recent?: RecentDay[]
+  inputs?: { reanalysis_nodes: number; noaa_stations: { id: string; name: string; days_with_data: number }[]; sjcet_register: string }
   issued: string
   station: { id: string; name: string; lat: number; lon: number }
   model: { name: string; run_id: string }
@@ -70,10 +83,11 @@ export type MetricSet = Record<string, number>
 
 export interface Metrics {
   version: number
+  horizon?: number
   test_period: [string, string]
   local_station: { id: string; name: string }
-  models: { name: string; group: 'baseline' | 'gnn'; metrics: Record<string, MetricSet> }[]
-  ablation: ({ model: string; local_fraction: number; seed: number } & Record<string, number | string>)[]
+  models: { name: string; group: 'baseline' | 'gnn'; metrics: Record<string, MetricSet>; by_lead?: Record<string, MetricSet>[]; by_lead_hidden?: Record<string, MetricSet>[] }[]
+  ablation: ({ model: string; local_fraction: number; seed: number; lead?: number } & Record<string, number | string>)[]
   by_season: ({ model: string; season: string } & Record<string, number | string>)[]
 }
 
@@ -90,8 +104,8 @@ export interface ReviewStatus {
   reason?: string
 }
 
-async function get<T>(path: string): Promise<T> {
-  const r = await fetch(path)
+async function get<T>(path: string, init?: RequestInit): Promise<T> {
+  const r = await fetch(path, init)
   if (!r.ok) {
     let detail = r.statusText
     try {
@@ -112,7 +126,10 @@ export const api = {
   graph: () => get<Graph>('/api/graph'),
   metrics: () => get<Metrics>('/api/metrics'),
   history: () => get<HistoryRow[]>('/api/history'),
-  testPredictions: (model: string) => get<TestRow[]>(`/api/results/test?model=${model}`),
+  testPredictions: (model: string, lead = 1) => get<TestRow[]>(`/api/results/test?model=${model}&lead=${lead}`),
+  forecast: (date: string, model: string) => get<Forecast>(`/api/forecast?date=${date}&model=${model}`),
+  live: () => get<Forecast>('/api/forecast/live'),
+  refreshLive: () => get<Forecast>('/api/forecast/live/refresh', { method: 'POST' }),
   reviewStatus: () => get<ReviewStatus>('/api/review/status'),
 }
 
@@ -152,6 +169,9 @@ export const addDays = (iso: string, n: number) => {
   d.setUTCDate(d.getUTCDate() + n)
   return d.toISOString().slice(0, 10)
 }
+
+/** Today's date in India (the station's time zone), as YYYY-MM-DD. */
+export const todayIST = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10)
 
 export const fmtDate = (iso: string, opts: Intl.DateTimeFormatOptions) =>
   new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', ...opts })

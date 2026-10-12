@@ -10,7 +10,7 @@ deadline.
 | ERA5 from Copernicus CDS | **NASA POWER** daily point data (MERRA-2 based reanalysis) | CDS requests sat in the queue for over an hour without starting; POWER returns 36 years per point in ~4 s, no key. `data/download_era5.py` still works if you want ERA5 later. |
 | Kerala fine grid 0.25° | 0.5° (POWER's native resolution) | |
 | SJCET node as stage-3 target | **SJCET** (digitized register, Jul 2010–Dec 2016) since 2026-10-11 | Earlier runs used the COCHIN NOAA station (43353099999) as a stand-in; set `local.node_id` back to it to reproduce them. |
-| H = 1–3 days | H = 1 (next day) | |
+| H = 1–3 days | **H = 6** (`horizon` in `config.yaml`) | NASA POWER publishes ~3 days late, so 6 lead days are needed for a live forecast to reach today plus the next two days. |
 
 ## Graph
 1,062 reanalysis nodes (962 at 1° over India, 99 at 0.5° over Kerala, 1 at SJCET) + 6 NOAA
@@ -68,6 +68,20 @@ Results, SJCET test 2015–2016, all training months (RMSE; `outputs/metrics.jso
 `./run_stage3.sh` reruns baselines + the stage-3 ablation + export from the existing
 `s1`/`s12` checkpoints (about 2 h on CPU).
 
+## Lead days and live forecasts
+
+The decoder emits one block of targets per lead day (t+1 … t+6) from the same 7-day input window.
+The loss averages over lead days, `result.json` reports `local_test_by_lead`, and baselines are
+scored per lead day (persistence = today's value; one XGBoost model per lead day). Stage 1 and 2
+were warm-started from the earlier next-day checkpoints: `wx.load_weights` copies the old head into
+every lead-day block. The next-day (H = 1) results are archived in `outputs_h1/`.
+
+`live.py` makes a forecast from the latest data. It fetches NASA POWER for the reanalysis nodes in
+SJCET's 4-hop neighbourhood (the only nodes that affect its output) and the latest NOAA GSOD files,
+and issues from the last complete day, so today is usually lead day 4. It writes
+`outputs/forecasts/live.json`. The SJCET register has no readings after 2016, so the live
+forecast relies on regional data.
+
 ## Run
 
 ```bash
@@ -77,6 +91,7 @@ uv run python data/download_power.py      # ~1 h, resumable
 ./run_all.sh                              # build data, baselines, stages 1-2, 30 stage-3 runs, export
 uv run python predict.py 2015-07-10       # one forecast (JSON)
 uv run python predict.py --export         # test-period forecasts -> outputs/forecasts/
+uv run python live.py                     # forecast from the latest data -> outputs/forecasts/live.json
 ```
 
 ## Outputs

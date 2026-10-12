@@ -23,7 +23,8 @@ function TempError({ fc, obs, label }: { fc: number; obs: number | null | undefi
   )
 }
 
-export default function DayCard({ day, n, issued }: { day: ForecastDay; n: number; issued: string }) {
+export default function DayCard({ day, n, issued, badge }: { day: ForecastDay; n: number; issued: string; badge?: string }) {
+  const lead = day.lead_days ?? n
   const o = day.observed
   const mid = Math.round((day.tmax_c + day.tmin_c) / 2)
   const v = (x: number | null | undefined, unit: string) =>
@@ -33,9 +34,9 @@ export default function DayCard({ day, n, issued }: { day: ForecastDay; n: numbe
       <div className="day-top">
         <div>
           <div className="day-date">{fmtDate(day.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</div>
-          <div className="day-issued">issued {fmtDate(issued, { day: 'numeric', month: 'short' })}, 1 day ahead</div>
+          <div className="day-issued">issued {fmtDate(issued, { day: 'numeric', month: 'short' })}, {lead} day{lead > 1 ? 's' : ''} ahead</div>
         </div>
-        <span className="badge">Day {n}</span>
+        <span className="badge">{badge ?? `Day ${n}`}</span>
       </div>
       <div className="day-main">
         <WeatherIcon day={day} />
