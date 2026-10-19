@@ -1,146 +1,220 @@
-# Transfer Learning-Based Weather Forecasting
+# Transfer Learning-Based Weather Forecasting for SJCET
 
-A deep learning approach to weather forecasting that leverages transfer learning across global meteorological monitoring networks. The core strategy is to pretrain time-series models on data-rich, long-record stations from the global NOAA Integrated Surface Database (ISD) / Global Surface Summary of the Day (GSOD) corpus, and fine-tune them on target regional networks—specifically Indian weather stations—where historical observational records are often short, sparse, or gappy.
+Final-year project, St. Joseph's College of Engineering and Technology (SJCET), Palai, Kerala.
 
+The college has kept a paper weather register (dry/wet bulb, max/min temperature, rainfall) for years,
+but it was never digitized, and a few years of readings from one station are far too little to
+train a forecasting model on. This project does two things:
 
-## Run the app (demo)
+1. **Digitizes the register.** The July 2010 – December 2016 scans were transcribed cell by cell,
+   checked automatically and against the written monthly rainfall totals, and assembled into
+   `data/sjcet/sjcet_daily.csv`.
+2. **Forecasts SJCET weather 6 days ahead with staged transfer learning.** A graph neural network
+   is pretrained on 36 years of regional reanalysis over India (stage 1), then on NOAA stations
+   in and around Kerala (stage 2), and finally fine-tuned on the small SJCET record (stage 3).
 
-From the repository root, in a WSL/Linux terminal:
+A web app shows the live forecast, the digitized register, and how the models compare.
+
+**Main result** (SJCET test period 2015–2016, next-day RMSE): pretraining lowers the error from
+2.17 → 1.43 °C for Tmax and 1.72 → 1.08 °C for Tmin compared with the same network trained on
+SJCET alone. The gap is largest when SJCET data is scarce: with 10% of its training months,
+pretrained models reach a Tmin error of 2.1–2.5 °C, against 3.7 °C from scratch.
+Details are in [model/README.md](model/README.md).
+
+---
+
+## Repository layout
+
+```
+.
+├── start.sh            # one command to start the web app (API + frontend)
+├── digitization/       # turning the paper register into data/sjcet/sjcet_daily.csv
+├── model/              # data download, graph building, staged GNN training, forecasts
+├── frontend/
+│   ├── api/            # FastAPI backend: serves the files the other parts produce
+│   └── web/            # React + Vite + TypeScript web app
+├── data/sjcet/         # the digitized register (not in git)
+├── Dataset/            # NOAA GSOD daily files 1929–2025 (not in git)
+└── About/              # scans, photos, review slides, papers (not in git)
+```
+
+Each part has its own README:
+
+| Part | README | Python env |
+|---|---|---|
+| Digitization | [digitization/NOTES.md](digitization/NOTES.md) | `digitization/` (uv) |
+| Model | [model/README.md](model/README.md) | `model/` (uv, PyTorch CPU) |
+| Web app | [frontend/README.md](frontend/README.md) | `frontend/api/` (uv) + Node for `frontend/web/` |
+
+Datasets, model outputs and checkpoints are kept out of git (see [.gitignore](.gitignore)).
+To run the app on a fresh clone, copy `data/sjcet/` and `model/outputs/` over from a machine that
+has them, or rebuild them (see [Rebuilding everything](#rebuilding-everything-from-scratch)).
+
+---
+
+## Starting the app
+
+### Requirements
+
+- Linux or WSL2 (the scripts are bash)
+- [uv](https://docs.astral.sh/uv/) for Python 3.11/3.12:
+  `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Node.js 18+ and npm
+- Internet access only for the live forecast refresh
+
+### One command
+
+From the repository root:
 
 ```bash
-./start.sh            # starts the API (port 8000) and the web app, opens http://localhost:5173
-./start.sh --refresh  # same, but first fetches the latest data and remakes today's live forecast (needs internet, ~1 min)
+./start.sh            # start the API (port 8000) and the web app (port 5173)
+./start.sh --refresh  # also fetch the latest data and remake today's live forecast first (~1 min)
 ```
 
-Press **Ctrl+C** to stop. The first run installs dependencies, which takes a few minutes; after that it starts in about 10 seconds.
-Needs `uv` and Node.js. Logs go to `.start-logs/`.
+The script installs whatever is missing, starts both servers, waits for them to respond and
+opens **http://localhost:5173** in your browser (on WSL, in the Windows browser).
+The first run takes a few minutes to install dependencies; after that it starts in about 10 seconds.
 
-The app only *shows* results that are already on disk (`data/sjcet/sjcet_daily.csv`, `model/outputs/`); it never trains.
-To rebuild those: `cd digitization && uv run python assemble.py` (dataset), `cd model && ./run_all.sh` (all models, several hours on CPU).
+Press **Ctrl+C** in the same terminal to stop both servers.
+Server logs are written to `.start-logs/api.log` and `.start-logs/web.log`.
 
----
+At startup the script warns about anything the app cannot find:
 
-## Data
+| Warning | Effect | Fix |
+|---|---|---|
+| `sjcet_daily.csv missing` | History page is empty | `cd digitization && uv run python assemble.py` |
+| `metrics.json missing` | Results page is empty | `cd model && ./run_all.sh` |
+| `replay forecasts missing` | Replay mode is empty | `cd model && uv run python predict.py --export` |
+| `no live forecast yet` | Live mode offers a "Make one now" button | `./start.sh --refresh` |
 
-The repository utilizes NOAA global station registry data and historical daily observation records spanning nearly a century.
+### Starting the servers by hand
 
-| Path | Type | Description / Details |
-| :--- | :--- | :--- |
-| `Dataset/` | Directory (97 subfolders) | NOAA ISD/GSOD observation data organized by year (`1929` through `2025`). Each year folder contains per-station CSV files named `<USAF><WBAN>.csv` (e.g., `03005099999.csv`). Ignored by git via `.gitignore`. |
-| `isd-history.csv` | CSV File (~30k stations) | Full global ISD station registry (~29,661 station records). Contains station metadata and coverage windows (`BEGIN` and `END` in `YYYYMMDD` format). |
-| `isd-history-India.csv` | CSV File (545 stations) | Filtered registry subset containing Indian weather stations (`CTRY == "IN"`), generated by `DataPipeline.findIndianStations()`. |
-
-### Station Registry Schema (`isd-history.csv`)
-* `USAF`: Air Force station identifier (6-character string)
-* `WBAN`: Weather Bureau Army Navy identifier (5-character string)
-* `STATION NAME`: Name of the station
-* `CTRY`: Two-letter country code (e.g., `"IN"` for India)
-* `STATE`: Two-letter US state code (if applicable)
-* `ICAO`: International Civil Aviation Organization identifier
-* `LAT`: Station latitude (decimal degrees)
-* `LON`: Station longitude (decimal degrees)
-* `ELEV(M)`: Station elevation in meters
-* `BEGIN`: Start date of record coverage (`YYYYMMDD`)
-* `END`: End date of record coverage (`YYYYMMDD`)
-
----
-
-## Repository Layout
-
-```
-TransferLearningbAsedWeatherForecasting/
-├── Dataset/                 # NOAA ISD/GSOD daily observation CSVs (1929–2025, 97 year-folders)
-├── isd-history.csv          # Full global NOAA ISD station history registry (~30k stations)
-├── isd-history-India.csv    # Filtered registry of Indian weather stations (545 stations)
-├── data_pipeline.py         # DataPipeline class for filtering registry and loading station records
-├── pipeline.ipynb           # Interactive Jupyter notebook for exploration and driver testing
-├── stations.py              # Placeholder module for station utility functions (currently 0 bytes)
-├── .venv/                   # Local Python virtual environment
-├── .gitignore               # Excludes Dataset/* from version control
-└── README.md                # Project documentation
-```
-
----
-
-## Pipeline
-
-The data ingestion pipeline processes global station metadata to extract target regional subsets and load observation time series:
-
-1. **Registry Extraction (`findIndianStations`)**:
-   * Reads `isd-history.csv`.
-   * Filters records where `CTRY == "IN"`.
-   * Exports the target subset to `isd-history-India.csv`.
-   * Constructs 11-digit station IDs (`<USAF><WBAN>`) for matching against filenames in `Dataset/`.
-
-2. **Record Aggregation (`findRecordsByStations` - In Progress)**:
-   * Scans `Dataset/<YEAR>/<STATION_ID>.csv` across annual subdirectories.
-   * Aggregates multi-year meteorological time series (temperature, pressure, precipitation, wind, etc.) per station for model training.
-
----
-
-## Setup
-
-### Environment Activation
-The project includes a Python virtual environment in `.venv/`. Activate it prior to running scripts or notebooks:
+If you want to run them separately (for example to see the logs), use two terminals:
 
 ```bash
-# On Linux / macOS
-source .venv/bin/activate
+# terminal 1: API on http://localhost:8000 (docs at /docs)
+cd frontend/api && uv sync && uv run uvicorn main:app --reload --port 8000
+
+# terminal 2: web app on http://localhost:5173 (forwards /api to port 8000)
+cd frontend/web && npm install && npm run dev
 ```
 
-### Dependencies
-There is currently no committed `requirements.txt` or package lockfile in the repository. Dependencies are inferred from module imports in `data_pipeline.py` and `pipeline.ipynb`:
+The app only **shows** results that are already on disk. It never trains a model. The one
+exception is the live-forecast refresh, which runs `model/live.py` on request.
 
-* `pandas`
-* `numpy`
-* `pathlib` (standard library)
-* `jupyter` / `notebook` / `ipykernel` (for running `pipeline.ipynb`)
+---
 
-To install required packages into your active virtual environment:
+## Using the app
+
+The sidebar has four pages plus a team tool. The **Dark mode / Light mode** button at the
+bottom of the sidebar switches the theme.
+
+### Forecast
+
+The page opens here. Use the **Live / Replay** switch at the top to choose a mode.
+
+**Live** (default): the forecast made from the newest data available.
+- Three cards show **today, tomorrow and the day after**: max/min temperature, rainfall,
+  chance of rain and relative humidity.
+- The note at the top says which day the forecast was issued from. NASA POWER publishes about
+  3 days late, so the model forecasts 6 days ahead from the newest complete day and today is
+  usually lead day 4.
+- Click **Refresh with latest data** to download the newest data and rerun the model
+  (about 1–2 minutes, needs internet). If no live forecast exists yet, click **Make one now**.
+- The chart shows the last 14 days of reanalysis at SJCET followed by the 6-day forecast.
+
+**Replay**: forecasts for past dates, compared with what the register actually recorded.
+- Pick a date in **Forecast issued on** (test period 2015–2016) and a **Model**
+  (default: the GNN pretrained on region → stations → SJCET).
+- The cards show the forecast with the observed values next to it.
+- The chart compares forecast and observed temperature around that date.
+
+Both modes show the **weather network map**: the reanalysis grid, NOAA stations and SJCET that the
+graph model is built on. Tick **Show edges** to draw the graph connections.
+
+### History
+
+The digitized register.
+- **Register coverage:** one row per year, one cell per day. Gaps are days with no reading
+  (mostly weekends and holidays). Hover a cell for its date and quality flag.
+- **Daily readings:** choose the years with **From** / **to** and toggle the variables
+  (max/min temperature, dry/wet bulb, humidity, rainfall). Hollow dots are values flagged
+  as suspect during checking. **CSV** downloads the selected years.
+- **Monthly rainfall**, **Annual means** and **Annual rainfall** summarise the record.
+
+### Results
+
+"Does pretraining help?": how well each model forecasts SJCET over the held-out test period.
+- At the top right, choose the **variable** (max temp, min temp, rainfall) and the
+  **lead day** (1–6). The charts below follow these choices.
+- **Error vs lead time:** how the error grows from day 1 to day 6, for each model and baseline.
+- **Live-like test:** the same comparison with SJCET's own readings hidden, as in the live
+  forecast (the register stops in 2016).
+- **Error vs amount of SJCET data:** error when stage 3 sees 10%, 25%, 50% or 100% of the SJCET
+  training months. This is the main transfer-learning experiment.
+- **All models:** table of RMSE, bias and rain/no-rain accuracy; the best value per column is green.
+  Hover a column header for what the metric means.
+- **Forecast vs observed:** scatter plot and time series for the model chosen in the drop-down.
+- **Error by season:** day-1 error per season.
+
+### About
+
+The pipeline from paper register to forecast, and the data sources used.
+
+### Review Tool (team tool)
+
+Meant for checking OCR'd register cells against their images. It shows an empty state for now:
+the 2010–2016 register was transcribed by hand, so there are no OCR'd cells (`cells.csv`) yet.
+
+---
+
+## Rebuilding everything from scratch
+
+Only needed if `data/sjcet/` or `model/outputs/` is missing or you change the data or model.
+Run the steps in order:
 
 ```bash
-pip install pandas numpy jupyter
+# 1. Digitized register -> data/sjcet/sjcet_daily.csv  (needs the transcripts in digitization/work/)
+cd digitization
+uv sync
+uv run python check_transcripts.py
+uv run python assemble.py
+
+# 2. Reanalysis data, graph, training, exports -> model/outputs/  (several hours on CPU)
+cd ../model
+uv sync
+uv run python data/download_power.py   # ~1 h, resumable
+./run_all.sh                           # resumable; SEEDS="0" ./run_all.sh is quicker
+uv run python live.py                  # today's live forecast
+
+# 3. Start the app
+cd .. && ./start.sh
 ```
 
 ---
 
-## Status / Known Issues
+## Data sources
 
-The code is currently in early active development. Below are critical issues identified in the codebase:
+| Source | What | Used for |
+|---|---|---|
+| SJCET weather register | Daily dry/wet bulb, max/min, rainfall, Jul 2010 – Dec 2016 (digitized) | Stage-3 target, History page |
+| [NASA POWER](https://power.larc.nasa.gov/) | Daily MERRA-2 based reanalysis 1990–2025, 1° over India, 0.5° over Kerala | Stage-1 pretraining, live inputs |
+| [NOAA GSOD](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00516) | Daily station summaries: Bangalore, Coimbatore, Mangalore, Thiruvananthapuram, Kozhikode, Cochin | Stage-2 pretraining, live inputs |
 
-### 1. Syntax Error in `data_pipeline.py:21`
-`findRecordsByStations` is declared without parentheses or an indented function body:
-```python
-def findRecordsByStations:
-```
-Because of this syntax error, importing `DataPipeline` via `from data_pipeline import DataPipeline` raises a `SyntaxError` and fails.
-
-### 2. Station ID Construction Bug (`data_pipeline.py:12-17` & `pipeline.ipynb:27-32`)
-The current station ID extraction logic takes `stationWBANs[0]` (a single WBAN string, typically `'99999'`) and appends it to all USAF codes:
-```python
-# Incorrect:
-stationWBANs = df_IN["WBAN"].astype(str).unique().tolist()
-stationWBAN = stationWBANs[0]
-for stationUSAF in stationUSAFs:
-    stationIDs.append(stationUSAF + stationWBAN)
-```
-* **Impact**: While many Indian stations use the sentinel WBAN `99999` (allowing this to work accidentally for a majority of records), stations with real, non-sentinel WBAN values receive invalid combined IDs and fail file lookup against `Dataset/<YEAR>/<USAF><WBAN>.csv`.
-* **Recommended Row-Wise Fix**:
-  ```python
-  stationIDs = (df_IN["USAF"].astype(str) + df_IN["WBAN"].astype(str).str.zfill(5)).tolist()
-  ```
+ERA5 was the original plan, but the Copernicus queue was too slow. `model/data/download_era5.py`
+is kept in case it is needed later.
 
 ---
 
-## Roadmap
+## Status and limitations
 
-- [ ] **Fix Station ID Construction**: Update `data_pipeline.py` and `pipeline.ipynb` to use row-wise USAF + WBAN string formatting.
-- [ ] **Complete Record Ingestion (`findRecordsByStations`)**: Resolve the syntax error in `data_pipeline.py` and implement multi-year file loading from `Dataset/`.
-- [ ] **Station Stratification (Pretrain vs. Fine-Tune)**: Filter `isd-history.csv` to partition global stations into:
-  - *Pretraining Pool*: Long-record, high-completeness stations globally.
-  - *Fine-Tuning Targets*: Indian stations (`CTRY == "IN"`), categorized by record length and missingness.
-- [ ] **Time Series Preprocessing & Cleaning**:
-  - Handle missing data, station relocation gaps, and variable scaling.
-  - Construct fixed-window input tensors (e.g., temperature, pressure, humidity).
-- [ ] **Model Pretraining**: Train a deep sequence model (e.g., LSTM, Temporal Convolutional Network, or Transformer) on the data-rich global pretraining pool.
-- [ ] **Fine-Tuning & Baseline Comparison**: Fine-tune the pretrained model on Indian station series and evaluate forecasting performance against a model trained from scratch on Indian stations alone.
+- **Phone photos from 2017 onwards are not transcribed yet**, so the register (and the model's
+  SJCET training data) ends in December 2016. The live forecast relies on regional data only.
+- **OCR is not in use.** Zero-shot TrOCR read only about 33% of cells exactly, and there was no
+  GPU to fine-tune it. The hand transcriptions can serve as training labels later.
+- **Persistence is hard to beat on temperature.** The register stores whole degrees and the max
+  thermometer often repeats for weeks, so "tomorrow = today" scores well on day 1. The models
+  pull ahead at longer lead times.
+- **Humidity at SJCET is approximate.** It is derived from the forecast mean temperature and
+  dewpoint, and the register has no true daily mean temperature.
+- Team names on the About page are not filled in yet (`frontend/web/src/pages/About.tsx`).
