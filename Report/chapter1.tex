@@ -2,26 +2,33 @@
 \chapter{Introduction}
 \label{chap:introduction}
 
-Weather shapes daily life in Kerala more directly than in most places. The state receives two monsoons, its agriculture and water supply depend on their timing and intensity, and the Western Ghats produce sharp local differences in temperature and rainfall over distances of a few tens of kilometres. A forecast that is good for a district may therefore be poor for a particular campus, farm or catchment, and the places that need a local forecast are usually the places with the least local data to build one from.
+\section{Overview}
+\label{sec:overview}
 
-At the same time, a great deal of useful local data already exists, but only on paper. Hawkins et al.\ show that rescuing even a modest number of historical paper observations changes what is known about past extreme weather \cite{ref1}. St.\ Joseph's College of Engineering and Technology (SJCET), Palai, is one such place: the college operates a manual weather station and its staff have recorded daily readings in a paper register for close to twenty years. This project digitizes that register and uses it, together with abundant regional weather data, to build a forecasting model for the campus through \textbf{staged transfer learning}.
+This project builds a weather forecast for the SJCET campus from two very different kinds of data: a handwritten weather register kept at the college for close to twenty years, and decades of freely available regional weather data. The register is first digitized into a verified daily dataset. A graph neural network then learns how weather evolves across India from the regional data, learns how real weather stations differ from that data, and is finally fine-tuned on the digitized register. This staged \textbf{transfer learning} lets a modern forecasting model work at a single station whose own record is far too short to train one from scratch. The result is a six-day forecast of maximum and minimum temperature and rainfall at SJCET, served through a web application.
 
 \section{Background}
 \label{sec:background}
 
-The SJCET register is read once a day at about 08:30 IST. Each row records the dry-bulb and wet-bulb temperatures, the maximum and minimum temperatures and the rainfall since the previous reading, and the observers also wrote monthly rainfall totals. The record is \textbf{handwritten}, with the corrections and overwritings of any long-running manual log; it is \textbf{short} by machine-learning standards, with 1,549 observed days in the clean scans of July 2010 to December 2016; and its monthly totals act as \textbf{checksums} that make a careful digitization verifiable. As long as the register stays on paper, it cannot be searched, analysed or used to train a model, and it deteriorates with time.
+Weather shapes daily life in Kerala more directly than in most places. The state receives two monsoons, and the Western Ghats produce sharp local differences in temperature and rainfall over a few tens of kilometres, so a forecast that is good for a district can be poor for a particular campus. Public forecasts, however, are issued only for districts and grid cells.
 
-Data-driven forecasting has advanced rapidly. Models such as Pangu-Weather \cite{ref5} and FuXi \cite{ref6}, trained on decades of global reanalysis, now rival operational numerical weather prediction. These systems, however, depend on dense, gridded, globally consistent training data, which a single college weather station cannot provide. A network trained on a few years of one station's readings will either underfit or memorise, while a model trained only on regional data describes grid-cell averages rather than the conditions at the station itself.
+The idea for the project began with the college's own weather station. For close to twenty years, staff at SJCET have read its instruments every working morning at about 08:30 and written the dry-bulb and wet-bulb temperatures, the maximum and minimum temperatures and the rainfall into a paper register, together with monthly rainfall totals. This is exactly the local record a campus forecast needs, but on paper it cannot be analysed or used to train a model. Hawkins et al.\ show that rescuing even a modest number of such paper observations changes what is known about past weather \cite{ref1}, so digitizing the register became the first goal.
 
-Transfer learning bridges this gap by reusing what a model learns on a data-rich source task to improve a related, data-poor target task \cite{ref8}. Nipen et al.\ have shown that a graph neural network pretrained on global reanalysis and refined on a few years of regional data outperforms an operational regional forecast \cite{ref7}. This project carries the same idea one level further down, from region to station.
+Digitizing the register, however, does not by itself make a forecast possible. The clean scans cover July 2010 to December 2016, which gives only 1,549 observed days, because the register is read on working days only. Data-driven models such as Pangu-Weather \cite{ref5} and FuXi \cite{ref6} now rival operational weather prediction, but they are trained on decades of dense, gridded global data, and a network trained on a few years of one station's readings would simply memorise them. Regional reanalysis and station archives, on the other hand, cover India daily for decades, but describe grid-cell averages or other places rather than the campus.
 
-The \textbf{problem} addressed is therefore twofold: nearly twenty years of local observations at SJCET remain on paper, and the few years that can be digitized are too few to train an accurate local forecasting model on their own. The \textbf{objectives} of the project follow directly:
+Transfer learning connects the two. It reuses what a model learns on a data-rich source task to improve a related, data-poor target task \cite{ref8}, and Nipen et al.\ have shown that a graph neural network pretrained on global reanalysis and refined on a few years of regional data outperforms an operational regional forecast \cite{ref7}. Taking this idea one step further down, from region to a single station, led to the project: learn the weather from abundant regional data, and use the small, carefully digitized local record only to adapt the model to SJCET.
 
-\begin{enumerate}
-    \item Digitize the SJCET weather register into a structured, traceable daily dataset.
-    \item Validate the digitized values against the observers' own monthly totals and prepare them for modelling.
-    \item Summarise the historical record: its coverage, rainfall and temperature.
-    \item Develop a graph neural network that is pretrained on regional reanalysis, refined on nearby weather stations and fine-tuned on the SJCET register, and evaluate how much local data it needs compared with conventional forecasting baselines.
+\section{Proposed Approach}
+\label{sec:approach}
+
+The project is carried out in five steps, which also form its objectives:
+
+\begin{enumerate}[itemsep=0pt,topsep=4pt]
+    \item \textbf{Digitize the register.} Transcribe every page, check it automatically and reconcile each month against the observers' rainfall totals, giving a traceable daily dataset.
+    \item \textbf{Build the regional dataset.} Combine 36 years of NASA POWER reanalysis over India and Kerala, six NOAA weather stations around Kerala and the SJCET register into a single weather graph.
+    \item \textbf{Train in three stages.} Pretrain a graph neural network on the regional reanalysis, refine it on the reference stations, and finally fine-tune it on the SJCET register.
+    \item \textbf{Evaluate accuracy and data efficiency.} Measure forecast accuracy at SJCET on held-out years against conventional methods, and how much local data the final stage needs.
+    \item \textbf{Deliver the forecast.} Present the forecasts, the register and the results in a web application.
 \end{enumerate}
 
 \lfoot{\textit{Department of Artificial Intelligence and Data Science, SJCET Palai}}

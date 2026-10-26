@@ -171,29 +171,6 @@ Table~\ref{tab:season} shows that temperature errors are smallest in the two mon
     \end{tabularx}
 \end{table}
 
-\section{Application Interface}
-\label{sec:res-app}
-
-The forecasts, the digitized register and the model comparison are presented through a React web application backed by a FastAPI service. The \textbf{Forecast} page shows the live forecast for the coming days and lets a user replay any 2015--2016 date to compare the six-day forecast with what the register recorded, alongside the weather-network map (Figure~\ref{fig:app-forecast}). The \textbf{History} page shows the digitized register as a coverage heat-map, daily readings, and monthly and annual rainfall (Figure~\ref{fig:app-history}). The \textbf{Results} page presents the accuracy and error comparisons of this chapter interactively (Figure~\ref{fig:app-results}).
-
-\begin{figure}[!htbp]
-    \centering
-    \IfFileExists{figures/app_forecast.png}{\includegraphics[width=0.9\textwidth]{app_forecast.png}}{\fbox{\parbox[c][5cm][c]{0.85\textwidth}{\centering Screenshot to be added: \textbf{figures/app\_forecast.png}}}}
-    \caption{\capFigAppForecast}\label{fig:app-forecast}
-\end{figure}
-
-\begin{figure}[!htbp]
-    \centering
-    \IfFileExists{figures/app_history.png}{\includegraphics[width=0.9\textwidth]{app_history.png}}{\fbox{\parbox[c][5cm][c]{0.85\textwidth}{\centering Screenshot to be added: \textbf{figures/app\_history.png}}}}
-    \caption{\capFigAppHistory}\label{fig:app-history}
-\end{figure}
-
-\begin{figure}[!htbp]
-    \centering
-    \IfFileExists{figures/app_results.png}{\includegraphics[width=0.9\textwidth]{app_results.png}}{\fbox{\parbox[c][5cm][c]{0.85\textwidth}{\centering Screenshot to be added: \textbf{figures/app\_results.png}}}}
-    \caption{\capFigAppResults}\label{fig:app-results}
-\end{figure}
-
 \section{Summary of Observations}
 \label{sec:res-summary}
 
@@ -206,6 +183,30 @@ The forecasts, the digitized register and the model comparison are presented thr
     \item Rainfall at a single gauge remains the weakest part of the system.
 \end{itemize}
 
+\section{Application Interface}
+\label{sec:res-app}
+
+The forecasts, the digitized register and the model comparison are presented through a React web application backed by a FastAPI service. The \textbf{Forecast} page shows the live forecast for the coming days and lets a user replay any 2015--2016 date to compare the six-day forecast with what the register recorded, alongside the weather-network map (Figure~\ref{fig:app-forecast}). The \textbf{History} page shows the digitized register as a coverage heat-map, daily readings, and monthly and annual rainfall (Figure~\ref{fig:app-history}). The \textbf{Results} page presents the accuracy and error comparisons of this chapter interactively (Figure~\ref{fig:app-results}).
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/app_forecast.png}{\includegraphics[width=1.0\textwidth]{app_forecast.png}}{\fbox{\parbox[c][5cm][c]{0.85\textwidth}{\centering Screenshot to be added: \textbf{figures/app\_forecast.png}}}}
+    \caption{\capFigAppForecast}\label{fig:app-forecast}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/app_history.png}{\includegraphics[width=0.90\textwidth]{app_history.png}}{\fbox{\parbox[c][5cm][c]{0.85\textwidth}{\centering Screenshot to be added: \textbf{figures/app\_history.png}}}}
+    \caption{\capFigAppHistory}\label{fig:app-history}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/app_results.png}{\includegraphics[width=0.90\textwidth]{app_results.png}}{\fbox{\parbox[c][5cm][c]{0.85\textwidth}{\centering Screenshot to be added: \textbf{figures/app\_results.png}}}}
+    \caption{\capFigAppResults}\label{fig:app-results}
+\end{figure}
+
+\clearpage
 \section{Discussion}
 \label{sec:discussion}
 
