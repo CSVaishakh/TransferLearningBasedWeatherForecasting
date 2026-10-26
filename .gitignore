@@ -35,3 +35,15 @@ dist/
 
 # start.sh logs
 .start-logs/
+
+# LaTeX build files for the report
+Report/*.aux
+Report/*.fdb_latexmk
+Report/*.fls
+Report/*.lof
+Report/*.lot
+Report/*.toc
+Report/*.nlo
+Report/*.nls
+Report/*.ilg
+Report/*.out

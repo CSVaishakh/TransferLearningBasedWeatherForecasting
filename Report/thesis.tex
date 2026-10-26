@@ -1,0 +1,71 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                               % 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass{dmathesis}
+%% uncommand the following line to print equation labels next to
+%% equation numbers. 
+%% (left commented: it prints every \label name inside the text)
+%\usepackage{showlabel}
+%% The following is to control the format of your thesis
+\input{format}
+
+%% Packages needed by the tables and diagrams of this report
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{xurl}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,backgrounds,decorations.pathreplacing}
+\graphicspath{{figures/}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\renewcommand{\tabularxcolumn}[1]{p{#1}}
+\definecolor{brandbrown}{HTML}{000000}
+\definecolor{brandtan}{HTML}{555555}
+\definecolor{brandrule}{HTML}{808080}
+\definecolor{brandcream}{HTML}{F7F7F7}
+\definecolor{brandbeige}{HTML}{EDEDED}
+\renewcommand{\textdegree}{\ensuremath{^\circ}}
+%% no hyphenation at line ends
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\emergencystretch=3em
+\input{captions}
+%% let text share pages with large tables and figures
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.85}
+\newcommand{\projtitle}{Historical Weather Data Digitization and Transfer Learning for Data-Efficient Local Weather Forecasting}
+
+%% File to be included while running latex.
+\includeonly{chapter1,chapter2,chapter3,chapter4,ref,vm}
+
+\begin{document}
+%% Front page of thesis
+\input{frontpage}
+
+%% Main text
+% set page number starts from 1
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+%% To ensure the equation counter works correctly
+\eqlabon
+\eqlaboff
+
+\include{chapter1}
+\include{chapter2}
+\include{chapter3}
+\include{chapter4}
+\include{ref}
+\include{vm}
+
+\end{document}

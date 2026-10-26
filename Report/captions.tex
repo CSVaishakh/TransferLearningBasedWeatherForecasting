@@ -1,0 +1,23 @@
+% Caption texts used by the figures and tables
+\newcommand{\capFigPipeline}{End-to-end workflow: from the paper register to a six-day forecast served in the web application.}
+\newcommand{\capFigMethod}{Staged transfer-learning methodology: regional reanalysis, then stations, then the digitized SJCET register.}
+\newcommand{\capFigGnn}{The WeatherGNN forecasting network.}
+\newcommand{\capFigCoverage}{Observed days per year in the digitized SJCET register, July 2010 -- December 2016.}
+\newcommand{\capFigRmse}{RMSE at SJCET over the 2015--2016 test period by lead day, all SJCET training months.}
+\newcommand{\capFigEfficiency}{Day-1 RMSE against the share of SJCET training months given to stage 3 (mean $\pm$ s.d.\ over three seeds; one seed at 100\%).}
+\newcommand{\capTabSources}{Data sources used by the project.}
+\newcommand{\capTabGraph}{Composition of the weather graph.}
+\newcommand{\capTabIO}{Model inputs and outputs per node.}
+\newcommand{\capTabStages}{The three training stages.}
+\newcommand{\capTabHyper}{Training hyper-parameters.}
+\newcommand{\capTabBaselines}{Baselines against which the transfer-learning models are compared.}
+\newcommand{\capTabAccuracy}{Forecast accuracy at SJCET over the 2015--2016 test period, all training months: temperature as $100-\mathrm{MAPE}$, rain as the share of days with correct rain/no-rain.}
+\newcommand{\capTabResults}{SJCET test period 2015--2016, all training months, RMSE.}
+\newcommand{\capTabAblation}{Day-1 RMSE by share of SJCET training months (mean over three seeds below 100\%). Bold: best per column and variable.}
+\newcommand{\capTabLive}{Live-like test: day-1 and day-6 RMSE (\textdegree C) with SJCET's own inputs hidden; the standard-test value is in brackets.}
+\newcommand{\capTabSeason}{Day-1 RMSE by season (\textdegree C, rain in mm).}
+\newcommand{\capFigGraphMap}{The weather graph: 1,069 nodes (India 1\textdegree{} grid, Kerala 0.5\textdegree{} grid, six NOAA stations and SJCET) and 8,884 edges.}
+\newcommand{\capFigTimeseries}{Next-day forecast of the final model against the SJCET register over the 2015--2016 test period.}
+\newcommand{\capFigAppForecast}{Forecast page of the web application: live and replayed six-day forecasts with the weather-network map.}
+\newcommand{\capFigAppHistory}{History page of the web application: the digitized SJCET register.}
+\newcommand{\capFigAppResults}{Results page of the web application: interactive model comparison.}
