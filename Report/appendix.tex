@@ -2,13 +2,15 @@
 %%%%%%%%%%%%%%%%%%           Appendices                   %%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \appendix
-% list only the appendix titles in the contents
-\addtocontents{toc}{\protect\setcounter{tocdepth}{0}}
+% list the appendices in the contents as APPENDIX A, APPENDIX B only
+\addtocontents{toc}{\protect\setcounter{tocdepth}{-1}}
+\newcommand{\apptoc}[1]{\addtocontents{toc}{\protect\setcounter{tocdepth}{0}}\addcontentsline{toc}{chapter}{\numberline{}APPENDIX #1}\addtocontents{toc}{\protect\setcounter{tocdepth}{-1}}}
 \renewcommand{\thetable}{\thechapter.\arabic{table}}
 \renewcommand{\chaptername}{Appendix}
 
 \chapter{Sustainable Development Goal 13: Climate Action}
 \label{app:sdg}
+\apptoc{A}
 
 The project contributes to United Nations Sustainable Development Goal~13, \textbf{Climate Action: take urgent action to combat climate change and its impacts}. Climate change makes extreme weather more frequent and more severe, and adapting to it depends on knowing, at the local scale, how the weather has behaved in the past and how it is likely to behave in the coming days. Kerala, with two monsoons and sharp local differences across the Western Ghats, is a region where such local knowledge matters directly for agriculture, water supply and safety. The project contributes to SDG~13 in two ways: it \textbf{rescues a local climate record} that existed only on paper, and it \textbf{turns that record into a local forecast} using a method designed for places with little data.
 
@@ -50,6 +52,7 @@ Table~\ref{tab:sdg} lists the SDG~13 targets that the work of Phase~1 supports, 
 
 \chapter{Project Cost Estimation}
 \label{app:cost}
+\apptoc{B}
 
 This appendix estimates the cost of Phase~1 of the project as a professional software project, using the standard estimation equation
 \[

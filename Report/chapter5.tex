@@ -1,0 +1,58 @@
+\setcounter{equation}{0}
+\chapter{Conclusion and Future Scope}
+\label{chap:conclusion}
+
+\section{Summary of the Work}
+\label{sec:con-summary}
+
+This work set out to rescue SJCET's handwritten weather register and to find out whether a data-driven model could forecast campus weather from it. Both parts have been achieved for the July 2010 -- December 2016 record. The register was digitized into a traceable, quality-flagged daily dataset of 1,549 observed days. A graph neural network was pretrained on 36 years of regional reanalysis over India and Kerala, refined on six NOAA reference stations, and fine-tuned on the digitized register. The model forecasts maximum and minimum temperature and rainfall at SJCET up to six days ahead through a web application.
+
+\section{Achievement of the Objectives}
+\label{sec:con-objectives}
+
+The five objectives set out in Section~\ref{sec:approach} were met as follows:
+
+\begin{enumerate}[itemsep=0pt,topsep=4pt]
+    \item \textbf{Digitize the register.} Every page from July 2010 to December 2016 was transcribed and checked automatically. Each value is linked to its page, and 59 of the 78 months are confirmed against the observers' own monthly rainfall totals.
+    \item \textbf{Build the regional dataset.} NASA POWER reanalysis, six NOAA GSOD stations and the SJCET register were combined into a single weather graph of 1,062 reanalysis nodes, the stations and the campus.
+    \item \textbf{Train in three stages.} The network was pretrained on the reanalysis, refined on the stations and fine-tuned on the register, with each stage starting from the weights of the previous one.
+    \item \textbf{Evaluate accuracy and data efficiency.} On the held-out years 2015--2016, next-day maximum and minimum temperature are forecast with 96.6\% and 96.2\% accuracy. The model was also compared with persistence, climatology, XGBoost and a network trained on SJCET alone, using between 10\% and 100\% of the local data.
+    \item \textbf{Deliver the forecast.} A web application presents the live forecast, the digitized register and the model comparison.
+\end{enumerate}
+
+\section{Main Technical Contributions}
+\label{sec:con-contributions}
+
+\begin{itemize}[itemsep=0pt,topsep=4pt]
+    \item \textbf{A validated digital register.} The digitization documented the register's quirks, such as swapped columns, blank months and a rarely reset maximum thermometer, and separated transcription errors from the observers' own arithmetic slips.
+    \item \textbf{Staged transfer learning from region to station.} Pretraining on regional reanalysis and fine-tuning on SJCET gives about a third less error than the same network trained on SJCET alone. It beats XGBoost on maximum temperature at every lead day and overtakes persistence from day~4.
+    \item \textbf{A data-efficiency study.} With only 10\% of the local data, the pretrained model is the best of all methods for maximum temperature. This shows that the regional stages carry most of the knowledge the forecast needs.
+    \item \textbf{An end-to-end, file-based pipeline.} The stages communicate through files, so the model was developed on a stand-in station during transcription, and only one stage had to be rerun once the register data arrived.
+\end{itemize}
+
+\section{Practical Significance}
+\label{sec:con-significance}
+
+The project shows that a station with only a few years of handwritten readings can still obtain a modern, data-driven forecast. Two practical lessons are worth recording. First, \textbf{the checksum is worth more than the OCR}: the observers' monthly totals did more for data quality than any recognition model. Second, \textbf{the boring baselines matter}: without persistence and climatology, the GNN results would look better than they are. Because every data source and tool is free, the same method can be reused by schools, farms and other small stations that hold paper weather records (Appendix~\ref{app:sdg}). A cupboard of handwritten registers is not an archive until someone reads it. Read carefully and joined to the abundant regional data that already exists, a small local record becomes both a piece of the campus's climate history and the most valuable ingredient of its own forecast.
+
+\section{Current Limitations}
+\label{sec:con-limitations}
+
+\begin{itemize}[itemsep=0pt,topsep=4pt]
+    \item \textbf{Small test set.} The evaluation rests on a few hundred weekday readings from a single station, so differences of a few hundredths of a degree should not be read as meaningful.
+    \item \textbf{Minimum temperature with little local data.} With only 10\% of the local data, the model is worse than plain climatology for minimum temperature, which varies little at SJCET.
+    \item \textbf{Rainfall and the station stage.} Rainfall remains essentially unpredictable at a single gauge, and the NOAA station stage helped only when local data was scarcest.
+    \item \textbf{OCR.} Off-the-shelf handwriting recognition is not yet good enough for this register, so transcription remains manual.
+    \item \textbf{Reanalysis bias and live inputs.} The regional reanalysis carries its own biases. The register ends in 2016, so the live forecast currently runs without SJCET's own recent readings.
+\end{itemize}
+
+\section{Future Scope}
+\label{sec:con-future}
+
+\begin{itemize}[itemsep=0pt,topsep=4pt]
+    \item \textbf{Extend the record.} Transcribe the post-2016 photographs of the register to lengthen the record towards twenty years, restore SJCET's inputs to the live forecast and allow a study of local climate trends.
+    \item \textbf{Combine with climatology.} Blend the pretrained model with the station climatology for low-variance variables such as minimum temperature.
+    \item \textbf{More reference stations.} Add more and closer reference stations to test the station stage properly.
+    \item \textbf{Automatic weather station.} Install an automatic weather station on campus to supply live readings and support early warnings of heavy rain or extreme heat.
+    \item \textbf{Reuse the method.} Apply the digitization and transfer-learning pipeline to other institutions in Kerala that hold paper weather records.
+\end{itemize}
