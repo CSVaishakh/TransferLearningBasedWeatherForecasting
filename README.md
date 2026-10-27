@@ -49,7 +49,7 @@ The Phase 1 report (LaTeX source and PDF) is in [Report/](Report/): **[Report/th
 
 C S Vaishakh (SJC23AD025) · Elisha Anto (SJC23AD032) · Jeffin James (SJC23AD037) · Rahul Sarang (SJC23AD061)
 
-Guide: Mrs. Neethu Tom, Assistant Professor, Department of Artificial Intelligence and Data Science, SJCET Palai.
+Guide: Ms. Neethu Tom, Assistant Professor, Department of Artificial Intelligence and Data Science, SJCET Palai.
 
 ---
 

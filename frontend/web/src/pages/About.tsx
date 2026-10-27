@@ -68,7 +68,7 @@ export default function About() {
           {TEAM.map((m) => <li key={m}>{m}</li>)}
         </ul>
         <p className="muted" style={{ marginBottom: 0 }}>
-          Guided by <strong>Mrs. Neethu Tom</strong>, Assistant Professor, Department of Artificial Intelligence and Data
+          Guided by <strong>Ms. Neethu Tom</strong>, Assistant Professor, Department of Artificial Intelligence and Data
           Science, St. Joseph's College of Engineering and Technology, Palai.
         </p>
       </section>
