@@ -2,7 +2,7 @@
 
 **Historical Weather Data Digitization and Transfer Learning for Data-Efficient Local Weather Forecasting**
 
-The built report is [thesis.pdf](thesis.pdf) (42 pages). It uses the department LaTeX template
+The built report is [thesis.pdf](thesis.pdf) (47 pages). It uses the department LaTeX template
 (`dmathesis` class with `format.tex`): 12 pt, 1.5 line spacing, chapter headers and the department footer.
 
 ## Contents
@@ -15,6 +15,7 @@ The built report is [thesis.pdf](thesis.pdf) (42 pages). It uses the department 
 | 3 Proposed Methodology | `chapter3.tex` | Workflow, data sources, digitization, model, staged transfer learning, evaluation |
 | 4 Results and Discussion | `chapter4.tex` | Data, training, forecast accuracy, baselines, data efficiency, live and seasonal tests, app interface, discussion |
 | Conclusion and References | `ref.tex`, `conclusion_body.tex` | One-page conclusion, IEEE references |
+| Appendices | `appendix.tex` | A: SDG 13 Climate Action; B: project cost estimation (WBS, PERT, role rates) |
 | Vision and Mission | `vm.tex` | Department vision and mission |
 
 Supporting files: `captions.tex` (figure and table captions), `nomen.tex` (list of abbreviations),

@@ -81,7 +81,7 @@ ERA5 (planned) & Hourly reanalysis aggregated to daily statistics & Not used: th
 \section{Digitization of the SJCET Register}
 \label{sec:digitization}
 
-The clean source is a scanned PDF with one page per month from July 2010 to December 2016 (78 months). A separate summary PDF gives the rainfall of each month and year, and a further 289 phone photographs cover later years and are not yet transcribed \cite{ref1}. Each page was processed as follows:
+The clean source is a scanned PDF with one page per month from July 2010 to December 2016 (78 months). A separate summary PDF gives the rainfall of each month and year, and a further 289 phone photographs cover later years and are not yet transcribed. Following the practice of historical data rescue \cite{ref1,ref2,ref3}, each page was processed as follows:
 
 \begin{enumerate}
     \item \textbf{Transcribe} every cell exactly as written into one CSV per page, with a header giving the year, month and column order (two layouts occur, one up to 2011 and one from 2012).
@@ -90,9 +90,9 @@ The clean source is a scanned PDF with one page per month from July 2010 to Dece
     \item \textbf{Assemble} all pages onto a complete calendar, converting rain to millimetres, deriving relative humidity, and storing a flag and note for every row.
 \end{enumerate}
 
-A row is flagged \textbf{suspect} if its remarks describe a value as doubtful, unreadable or overwritten, if it breaks physics as written, if its rain may be accumulated over unobserved days, or if its month disagrees with the written total. The flag never deletes a value; it records the reason so that the modelling step can decide what to drop \cite{ref2}. Blank rain cells are stored as \textbf{not recorded}, never as zero.
+A row is flagged \textbf{suspect} if its remarks describe a value as doubtful, unreadable or overwritten, if it breaks physics as written, if its rain may be accumulated over unobserved days, or if its month disagrees with the written total. The flag never deletes a value; it records the reason so that the modelling step can decide what to drop. Blank rain cells are stored as \textbf{not recorded}, never as zero.
 
-\textbf{Rainfall checksums.} Together, the foot of the rain column (2014--2016) and the summary pages give a written total for every month. \textbf{59 of 78 months} match it to within 0.1\,cm. For six mismatched months a zoomed re-read confirmed the digits as transcribed, so these are addition errors by the observer; in the remaining months every rain value is kept but flagged \cite{ref3}.
+\textbf{Rainfall checksums.} Together, the foot of the rain column (2014--2016) and the summary pages give a written total for every month. \textbf{59 of 78 months} match it to within 0.1\,cm. For six mismatched months a zoomed re-read confirmed the digits as transcribed, so these are addition errors by the observer; in the remaining months every rain value is kept but flagged.
 
 \label{sec:dig-oddities}\textbf{Oddities.} The register has its own quirks: min/max headers swapped from 20 June 2011, dates written as ``-10'' in September 2011, ink bleed-through in June 2013, blank daily pages for November and December 2012 although the summary gives totals for both, and a maximum temperature that is often constant for weeks (for example 34\,\textdegree C every day of January 2013), which suggests the maximum thermometer was reset irregularly. The register yields 1,549 observed days in 2,376 calendar days (65\%), with weekends and holidays accounting for most gaps (Figure~\ref{fig:coverage}).
 
@@ -102,7 +102,7 @@ A row is flagged \textbf{suspect} if its remarks describe a value as doubtful, u
     \caption{\capFigCoverage}\label{fig:coverage}
 \end{figure}
 
-\label{sec:ocr}\textbf{Why not OCR.} The proposal planned an OCR route with GloSAT table recognition \cite{ref2} and a handwriting recogniser. On 150 hand-labelled cells, zero-shot TrOCR \cite{ref11} read at best 35.3\% exactly (character error rate 0.48), and fine-tuning it needs a GPU the team did not have. For 78 months of pages, manual transcription with automatic checks was faster and more reliable, and the transcripts now form a complete labelled set for training an OCR model on the later photographs \cite{ref3}.
+\label{sec:ocr}\textbf{Why not OCR.} The proposal planned an OCR route with table structure recognition \cite{ref2,ref4} and a handwriting recogniser. On 150 hand-labelled cells, zero-shot TrOCR \cite{ref11} read at best 35.3\% exactly (character error rate 0.48), and fine-tuning it needs a GPU the team did not have. For 78 months of pages, manual transcription with automatic checks was faster and more reliable, and, since table-recognition models depend on large labelled training sets \cite{ref10}, the transcripts now form a complete labelled set for training an OCR model \cite{ref3} on the later photographs.
 
 \section{Preparing the Register for Modelling}
 \label{sec:sjcet-handling}
@@ -135,7 +135,7 @@ After these steps the training period contains 716 SJCET temperature days and 24
 \section{Forecasting Model}
 \label{sec:model}
 
-\textbf{The weather graph.} Every source is assembled onto one daily calendar from 1990 to 2025 and every node is connected to its eight nearest neighbours by great-circle distance (Table~\ref{tab:graph}). Each edge carries the east--west and north--south offsets, the distance and the elevation difference. A graph accepts the coarse India grid, the fine Kerala grid, the irregular stations and SJCET as they are, without interpolation, and makes the transfer natural: SJCET is simply another node, hidden in stages 1 and 2 and revealed in stage 3 \cite{ref7,ref13}.
+\textbf{The weather graph.} Every source is assembled onto one daily calendar from 1990 to 2025 and every node is connected to its eight nearest neighbours by great-circle distance (Table~\ref{tab:graph}). Each edge carries the east--west and north--south offsets, the distance and the elevation difference. A graph \cite{ref7,ref13} accepts the coarse India grid, the fine Kerala grid, the irregular stations and SJCET as they are, without interpolation, and makes the transfer natural: SJCET is simply another node, hidden in stages 1 and 2 and revealed in stage 3.
 
 \begin{table}[!htbp]
     \centering
@@ -181,7 +181,7 @@ and missing values are set to zero and flagged by a separate mask channel, so th
 h_i &\leftarrow h_i + \mathrm{Drop}\big(\mathrm{GATv2}(\mathrm{LN}(h))_i\big), \label{eq:block1}\\
 h_i &\leftarrow h_i + \mathrm{Drop}\big(\mathrm{FFN}(h_i)\big), \label{eq:block2}
 \end{align}
-where the GATv2 layer aggregates the neighbours $j\in\mathcal{N}(i)$ with attention weights computed from both node states and the edge features $e_{ij}$ \cite{ref13}:
+where the GATv2 layer \cite{ref13} aggregates the neighbours $j\in\mathcal{N}(i)$ with attention weights computed from both node states and the edge features $e_{ij}$:
 \begin{equation}
 \alpha_{ij}=\operatorname*{softmax}_{j\in\mathcal{N}(i)}\Big(a^{\top}\,\mathrm{LeakyReLU}\big(\Theta_s h_i+\Theta_t h_j+\Theta_e e_{ij}\big)\Big), \qquad
 \mathrm{GATv2}(h)_i=\sum_{j\in\mathcal{N}(i)}\alpha_{ij}\,\Theta_t h_j .
@@ -218,7 +218,7 @@ where $m$ is the target mask, $w$ the per-node stage weight, $\hat{z}$ the rain 
 \section{Staged Transfer Learning}
 \label{sec:stages}
 
-Each stage closes a different gap (Figure~\ref{fig:method}, Table~\ref{tab:stages}). Stage 1 learns \textbf{weather}: how the nine variables evolve over seven days across India. Stage 2 learns the \textbf{observation gap}: how real thermometers and rain gauges differ from reanalysis in the region. Stage 3 learns \textbf{SJCET}: its 08:30 convention, its whole-degree readings and its slope location \cite{ref7,ref8}. The splits are identical in every stage, and the checkpoint with the lowest validation loss is kept.
+Each stage of the transfer \cite{ref7,ref8} closes a different gap (Figure~\ref{fig:method}, Table~\ref{tab:stages}). Stage 1 learns \textbf{weather}: how the nine variables evolve over seven days across India. Stage 2 learns the \textbf{observation gap}: how real thermometers and rain gauges differ from reanalysis in the region. Stage 3 learns \textbf{SJCET}: its 08:30 convention, its whole-degree readings and its slope location. The splits are identical in every stage, and the checkpoint with the lowest validation loss is kept.
 
 \begin{figure}[!htbp]
     \centering
@@ -278,14 +278,14 @@ Because the network has four message-passing layers, only nodes within four hops
     \end{tabularx}
 \end{table}
 
-\label{sec:method-missing}\textbf{Missing data.} A seven-day input window at SJCET usually has two or more missing days. Inputs are handled by the mask channel and targets by masking the loss. An optional variant (\textbf{-{}-clim-fill}) feeds a smoothed day-of-year climatology of SJCET in place of missing inputs while keeping the mask set to ``missing'' \cite{ref12}.
+\label{sec:method-missing}\textbf{Missing data.} A seven-day input window at SJCET usually has two or more missing days. Inputs are handled by the mask channel and targets by masking the loss. An optional variant (\textbf{-{}-clim-fill}) feeds a smoothed day-of-year climatology of SJCET in place of missing inputs while keeping the mask set to ``missing''.
 
 \label{sec:live}\textbf{Live forecasting.} \textbf{live.py} fetches recent NASA POWER data for SJCET's 4-hop neighbourhood and the latest GSOD files, builds the seven-day window ending on the last complete day, and runs the default region$\to$\allowbreak{}stations$\to$\allowbreak{}SJCET model. NASA POWER publishes about three days late, so today is usually lead day 4, which is why the horizon was extended to six days. Because the register stops in 2016, SJCET's own inputs are empty in a live forecast; a live-like test (Section~\ref{sec:res-livelike}) measures the effect.
 
 \section{Evaluation Setup}
 \label{sec:evaluation}
 
-Four baselines are scored on exactly the same SJCET test days and, where they use training data, the same subset of training months as the GNN they are compared with (Table~\ref{tab:baselines}) \cite{ref14}.
+Four baselines, including XGBoost \cite{ref14}, are scored on exactly the same SJCET test days and, where they use training data, the same subset of training months as the GNN they are compared with (Table~\ref{tab:baselines}).
 
 \begin{table}[!htbp]
     \centering

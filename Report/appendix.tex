@@ -1,0 +1,142 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%           Appendices                   %%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\appendix
+% list only the appendix titles in the contents
+\addtocontents{toc}{\protect\setcounter{tocdepth}{0}}
+\renewcommand{\thetable}{\thechapter.\arabic{table}}
+\renewcommand{\chaptername}{Appendix}
+
+\chapter{Sustainable Development Goal 13: Climate Action}
+\label{app:sdg}
+
+The project contributes to United Nations Sustainable Development Goal~13, \textbf{Climate Action: take urgent action to combat climate change and its impacts}. Climate change makes extreme weather more frequent and more severe, and adapting to it depends on knowing, at the local scale, how the weather has behaved in the past and how it is likely to behave in the coming days. Kerala, with two monsoons and sharp local differences across the Western Ghats, is a region where such local knowledge matters directly for agriculture, water supply and safety. The project contributes to SDG~13 in two ways: it \textbf{rescues a local climate record} that existed only on paper, and it \textbf{turns that record into a local forecast} using a method designed for places with little data.
+
+\section{Contribution to the SDG 13 Targets}
+\label{app:sdg-targets}
+
+Table~\ref{tab:sdg} lists the SDG~13 targets that the work of Phase~1 supports, with the part of this report where the evidence is given.
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Contribution of the project to the targets of SDG~13.}\label{tab:sdg}
+    \footnotesize
+    \begin{tabularx}{\textwidth}{|L{3.6cm}|Y|L{2.6cm}|}
+        \hline
+        \textbf{SDG 13 target} & \textbf{Contribution of this project} & \textbf{Evidence} \\ \hline
+        \textbf{13.1} Strengthen resilience and adaptive capacity to climate-related hazards and natural disasters &
+        Six-day forecasts of maximum and minimum temperature and rainfall for the campus, made from the newest available data, so that heat and heavy rain can be anticipated locally. Next-day temperature accuracy is 96.6\% (maximum) and 96.2\% (minimum). &
+        Sections~\ref{sec:res-accuracy} and~\ref{sec:res-livelike} \\ \hline
+        \textbf{13.1} (continued) &
+        A data-efficient method: staged transfer learning lets a station with only a few years of readings obtain a usable forecast, so the approach can be reused by schools, farms and small stations that have little local data. &
+        Sections~\ref{sec:stages} and~\ref{sec:res-efficiency} \\ \hline
+        \textbf{13.3} Improve education, awareness-raising and human and institutional capacity on climate change mitigation, adaptation, impact reduction and early warning &
+        Rescue of close to twenty years of the college's handwritten weather register: 1,549 observed days from 2010--2016 digitized, validated against the observers' own monthly totals and preserved as a traceable dataset for studying the local climate. &
+        Section~\ref{sec:digitization} \\ \hline
+        \textbf{13.3} (continued) &
+        A web application that presents the digitized history, the live forecast and the model comparison to students and staff, building awareness of the local climate and institutional capacity for early warning. &
+        Section~\ref{sec:res-app} \\ \hline
+    \end{tabularx}
+\end{table}
+
+\section{Planned Impact in Phase 2}
+\label{app:sdg-phase2}
+
+\begin{itemize}
+    \item \textbf{Long-term local climate trends:} transcribing the register from 2017 onwards will extend the record towards twenty years and allow a study of how temperature and rainfall at the campus have changed.
+    \item \textbf{Automatic weather station:} live readings from the campus will restore SJCET's own inputs to the forecast and support early warnings of heavy rain or extreme heat.
+    \item \textbf{A reusable method:} the digitization and transfer-learning pipeline can be applied to other institutions in Kerala that hold paper weather records.
+\end{itemize}
+
+\chapter{Project Cost Estimation}
+\label{app:cost}
+
+This appendix estimates the cost of Phase~1 of the project as a professional software project, using the standard estimation equation
+\[
+\text{Total project cost}=(\text{Total effort in hours}\times\text{Hourly rate})+\text{Fixed overhead costs}+\text{Contingency}.
+\]
+The effort is divided into roles with separate hourly rates. The estimate represents the market value of the work; the actual expenditure in Phase~1 was small, because all data sources and software are free and the work was done on the team's own laptops.
+
+\section{Work Breakdown and PERT Estimation}
+\label{app:cost-wbs}
+
+The work of Phase~1 is broken into twelve tasks (Table~\ref{tab:wbs}). For each task, an optimistic ($O$), most likely ($M$) and pessimistic ($P$) effort in hours is estimated, and the expected effort is computed with the three-point (PERT) formula
+\[
+\text{Estimated hours}=\frac{O+4M+P}{6}.
+\]
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Work breakdown structure with three-point (PERT) effort estimates, in hours.}\label{tab:wbs}
+    \footnotesize
+    \begin{tabularx}{\textwidth}{|C{0.6cm}|Y|L{2.7cm}|C{0.8cm}|C{0.8cm}|C{0.8cm}|C{1.3cm}|}
+        \hline
+        \textbf{No.} & \textbf{Task} & \textbf{Role} & \textbf{O} & \textbf{M} & \textbf{P} & \textbf{PERT} \\ \hline
+        1 & Literature survey and requirement analysis & ML/Data Engineer & 20 & 30 & 45 & 30.8 \\ \hline
+        2 & Transcription of the register (78 months) & Data Annotator & 40 & 60 & 90 & 61.7 \\ \hline
+        3 & Validation, rainfall checksums and dataset assembly & ML/Data Engineer & 6 & 10 & 16 & 10.3 \\ \hline
+        4 & OCR prototyping and evaluation (TrOCR, GloSAT) & ML/Data Engineer & 8 & 12 & 20 & 12.7 \\ \hline
+        5 & Regional data acquisition and weather-graph construction & ML/Data Engineer & 8 & 12 & 20 & 12.7 \\ \hline
+        6 & GNN model, staged training, ablation and baselines & ML/Data Engineer & 20 & 30 & 50 & 31.7 \\ \hline
+        7 & Evaluation and live forecasting & ML/Data Engineer & 6 & 10 & 16 & 10.3 \\ \hline
+        8 & UI/UX design of the web application & UI/UX Designer & 6 & 10 & 16 & 10.3 \\ \hline
+        9 & Backend API and frontend development & Software Engineer & 12 & 20 & 32 & 20.7 \\ \hline
+        10 & Testing, verification and reproduction of results & QA / Tester & 8 & 12 & 20 & 12.7 \\ \hline
+        11 & Project management, reviews and coordination & Project Manager & 15 & 20 & 30 & 20.8 \\ \hline
+        12 & Documentation and report preparation & Technical Writer & 25 & 35 & 50 & 35.8 \\ \hline
+        \multicolumn{6}{|r|}{\textbf{Total estimated effort}} & \textbf{270.5} \\ \hline
+    \end{tabularx}
+\end{table}
+
+The software development effort is modest because the code was written with modern AI-assisted development tools and builds on open-source libraries (PyTorch Geometric, FastAPI, React), and because model training runs unattended on a CPU, so machine time is not counted as working hours. The largest manual tasks are transcribing the paper register and preparing the documentation.
+
+\section{Team Composition and Labour Cost}
+\label{app:cost-labour}
+
+Table~\ref{tab:roles} groups the effort by role and applies an hourly rate to each role. The rates are entry-level rates for each role.
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Effort and labour cost by role.}\label{tab:roles}
+    \footnotesize
+    \begin{tabularx}{\textwidth}{|Y|C{1.8cm}|C{1.9cm}|C{2.3cm}|C{2.4cm}|}
+        \hline
+        \textbf{Role} & \textbf{Hours} & \textbf{Share of effort} & \textbf{Rate (\rupee/hour)} & \textbf{Cost (\rupee)} \\ \hline
+        ML/Data Engineer & 108.5 & 40.1\% & 550 & 59,675 \\ \hline
+        Software Engineer & 20.7 & 7.7\% & 450 & 9,315 \\ \hline
+        UI/UX Designer & 10.3 & 3.8\% & 400 & 4,120 \\ \hline
+        QA / Tester & 12.7 & 4.7\% & 350 & 4,445 \\ \hline
+        Project Manager & 20.8 & 7.7\% & 500 & 10,400 \\ \hline
+        Data Annotator & 61.7 & 22.8\% & 200 & 12,340 \\ \hline
+        Technical Writer & 35.8 & 13.2\% & 350 & 12,530 \\ \hline
+        \textbf{Total} & \textbf{270.5} & \textbf{100\%} & & \textbf{1,12,825} \\ \hline
+    \end{tabularx}
+\end{table}
+
+Engineering work (ML/data and software) accounts for 47.8\% of the effort, slightly below the usual 50--60\% for software projects, and UI/UX design, testing and project management take smaller shares than in a typical application project. This reflects the nature of the project: it is research-oriented, the development work was accelerated by AI-assisted tools, and a large part of the effort goes to data, with the hand transcription of the paper register alone accounting for 22.8\% of the hours.
+
+\section{Overheads, Contingency and Total Cost}
+\label{app:cost-total}
+
+Infrastructure and third-party costs are low because every data source and tool used in Phase~1 is free: NASA POWER and NOAA GSOD data, OpenStreetMap tiles, and open-source software (Python, PyTorch, FastAPI, React, \LaTeX). Training runs on a CPU, so no GPU or cloud training is needed. The remaining overheads, the contingency buffer of 15\% and the total are given in Table~\ref{tab:cost}.
+
+\begin{table}[H]
+    \centering
+    \caption{Total estimated cost of Phase~1.}\label{tab:cost}
+    \footnotesize
+    \begin{tabularx}{\textwidth}{|Y|C{3.0cm}|}
+        \hline
+        \textbf{Item} & \textbf{Cost (\rupee)} \\ \hline
+        Labour (Table~\ref{tab:roles}) & 1,12,825 \\ \hline
+        Cloud hosting for the web application (small virtual machine, 4 months $\times$ \rupee1,500) & 6,000 \\ \hline
+        Domain name (one year) & 1,000 \\ \hline
+        Internet and electricity (share for the project) & 4,000 \\ \hline
+        Printing and binding of reports & 2,000 \\ \hline
+        Third-party data and APIs (NASA POWER, NOAA GSOD, OpenStreetMap) & 0 \\ \hline
+        \textbf{Subtotal} & \textbf{1,25,825} \\ \hline
+        Contingency (15\% of subtotal) & 18,874 \\ \hline
+        \textbf{Total estimated cost} & \textbf{1,44,699} \\ \hline
+    \end{tabularx}
+\end{table}
+
+The estimated cost of Phase~1 is therefore about \textbf{\rupee1.45 lakh} for about 270 hours of effort. This is below the minimum-viable-product band of industry benchmarks (400--700 hours, \rupee2,00,000--\rupee3,50,000), because the free open-data stack removes almost all infrastructure cost and AI-assisted development shortens the coding effort. Phase~2 will add the cost of the automatic weather station and of transcribing the remaining records.

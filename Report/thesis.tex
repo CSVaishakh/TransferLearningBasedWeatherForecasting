@@ -20,6 +20,7 @@
 \usepackage{xurl}
 \usepackage{enumitem}
 \usepackage{tikz}
+\usepackage{tfrupee}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,backgrounds,decorations.pathreplacing}
 \graphicspath{{figures/}}
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
@@ -46,7 +47,7 @@
 \newcommand{\projtitle}{Historical Weather Data Digitization and Transfer Learning for Data-Efficient Local Weather Forecasting}
 
 %% File to be included while running latex.
-\includeonly{chapter1,chapter2,chapter3,chapter4,ref,vm}
+\includeonly{chapter1,chapter2,chapter3,chapter4,ref,appendix,vm}
 
 \begin{document}
 %% Front page of thesis
@@ -60,12 +61,15 @@
 %% To ensure the equation counter works correctly
 \eqlabon
 \eqlaboff
+%% number equations per chapter: 3.1, 3.2, ...
+\renewcommand{\theequation}{\arabic{chapter}.\arabic{equation}}
 
 \include{chapter1}
 \include{chapter2}
 \include{chapter3}
 \include{chapter4}
 \include{ref}
+\include{appendix}
 \include{vm}
 
 \end{document}

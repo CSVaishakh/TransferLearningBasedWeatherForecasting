@@ -94,15 +94,15 @@ Table~\ref{tab:results} gives the same comparison as root-mean-square error (RMS
 \end{figure}
 
 \begin{itemize}
-    \item \textbf{Pretraining roughly halves the gap to a usable forecast.} It cuts the day-1 RMSE from 2.17 to 1.42--1.43\,\textdegree C for maximum temperature (34\% lower) and from 1.72 to 1.08--1.10\,\textdegree C for minimum temperature (37\% lower), at every lead day \cite{ref7,ref8}.
-    \item \textbf{Fine-tuning on the register is essential.} The reanalysis at the campus is about 3.9\,\textdegree C colder than the register's maximum, so models that never see SJCET score 3.4--3.5\,\textdegree C. After stage 3 the bias is $+0.04$\,\textdegree C for Tmax and $0.00$\,\textdegree C for Tmin \cite{ref15}.
-    \item \textbf{The GNN beats XGBoost and, with lead time, persistence.} The pretrained GNNs beat XGBoost on maximum temperature at every lead day and overtake persistence from day 4 \cite{ref14}.
+    \item \textbf{Pretraining roughly halves the gap to a usable forecast.} Pretraining on regional data \cite{ref7,ref8} cuts the day-1 RMSE from 2.17 to 1.42--1.43\,\textdegree C for maximum temperature (34\% lower) and from 1.72 to 1.08--1.10\,\textdegree C for minimum temperature (37\% lower), at every lead day.
+    \item \textbf{Fine-tuning on the register is essential.} The reanalysis \cite{ref15} at the campus is about 3.9\,\textdegree C colder than the register's maximum, so models that never see SJCET score 3.4--3.5\,\textdegree C. After stage 3 the bias is $+0.04$\,\textdegree C for Tmax and $0.00$\,\textdegree C for Tmin.
+    \item \textbf{The GNN beats XGBoost and, with lead time, persistence.} The pretrained GNNs beat XGBoost \cite{ref14} on maximum temperature at every lead day and overtake persistence from day 4.
 \end{itemize}
 
 \section{Data Efficiency}
 \label{sec:res-efficiency}
 
-The central question of the project is how much of the scarce local record the model needs. Figure~\ref{fig:efficiency} and Table~\ref{tab:ablation} show the day-1 error when stage 3 sees 10\%, 25\%, 50\% or 100\% of the SJCET training months, averaged over three seeds below 100\%; the baselines are given exactly the same months \cite{ref8}.
+The central question of the project is how much of the scarce local record a transfer-learned model \cite{ref8} needs. Figure~\ref{fig:efficiency} and Table~\ref{tab:ablation} show the day-1 error when stage 3 sees 10\%, 25\%, 50\% or 100\% of the SJCET training months, averaged over three seeds below 100\%; the baselines are given exactly the same months.
 
 \begin{figure}[!htbp]
     \centering

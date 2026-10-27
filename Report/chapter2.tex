@@ -7,7 +7,7 @@
 
 \begin{enumerate}
 
-\item \textbf{Rescuing Historical Weather Observations Improves Quantification of Severe Windstorm Risks (Natural Hazards and Earth System Sciences, 2023)} \cite{ref1}
+\item \textbf{Rescuing Historical Weather Observations Improves Quantification of Severe Windstorm Risks (Natural Hazards and Earth System Sciences, 2023)}
 
 \textbf{Mechanism and Theory:} The paper argues that a large share of the world's historical weather observations survives only on paper and is therefore invisible to modern climate science. It shows that rescuing such observations and adding them to a reanalysis improves the reconstruction of past extreme events, which in turn improves the estimation of how often such events occur.
 
@@ -15,7 +15,7 @@
 
 \textbf{Technical Impact:} With the rescued data the storm is reproduced far more realistically, and it emerges as one of the most severe windstorms on record for the region, which changes the assessed windstorm risk. The study establishes the scientific value of digitizing paper weather records, the first motivation of this project, although it focuses on a single event and does not provide an automated digitization pipeline.
 
-\item \textbf{Data Rescue of Historical Tables Through Semi-Supervised Table Structure Recognition (International Journal on Document Analysis and Recognition, 2026)} \cite{ref2}
+\item \textbf{Data Rescue of Historical Tables Through Semi-Supervised Table Structure Recognition (International Journal on Document Analysis and Recognition, 2026)}
 
 \textbf{Mechanism and Theory:} The paper treats the digitization of historical weather tables as a table structure recognition problem: before any cell can be read, the rows, columns and cells of the scanned table must be located. Because labelled historical tables are scarce, it uses semi-supervised learning so that unlabelled pages also contribute to training.
 
@@ -23,7 +23,7 @@
 
 \textbf{Technical Impact:} Semi-supervised training improves structure recognition on historical tables with limited annotation. The method recognises structure only, not cell text, so its errors propagate to the recognition stage and the output still needs validation. It informed the OCR route that was prototyped for the SJCET register.
 
-\item \textbf{Tabular Context-Aware Optical Character Recognition and Tabular Data Reconstruction for Historical Records (International Journal on Document Analysis and Recognition, 2025)} \cite{ref3}
+\item \textbf{Tabular Context-Aware Optical Character Recognition and Tabular Data Reconstruction for Historical Records (International Journal on Document Analysis and Recognition, 2025)}
 
 \textbf{Mechanism and Theory:} The paper addresses the reading of handwritten cells in historical tables. It observes that a cell is easier to read when the model knows the content of the surrounding cells, and that systematic recognition errors can be corrected after recognition with a language model.
 
@@ -31,7 +31,7 @@
 
 \textbf{Technical Impact:} After training on several hundred thousand annotated cells, the system reaches a character error rate of about 0.035. This shows that accurate OCR of historical weather tables is possible, but only with large labelled datasets and GPU training, which explains why off-the-shelf recognition performed poorly on the SJCET register.
 
-\item \textbf{From Pixels to Tables: Reconstructing Complex Tables from Document Images (International Journal on Document Analysis and Recognition, 2025)} \cite{ref4}
+\item \textbf{From Pixels to Tables: Reconstructing Complex Tables from Document Images (International Journal on Document Analysis and Recognition, 2025)}
 
 \textbf{Mechanism and Theory:} The paper reconstructs the logical structure of complex tables, including spanning and irregular cells, directly from document images. It combines a top-down view, which finds the cells, with a bottom-up view, which decides how cells relate to one another.
 
@@ -39,7 +39,7 @@
 
 \textbf{Technical Impact:} The method improves structure recognition on complex table layouts. It recognises structure only, without OCR, and high-resolution inputs make it computationally heavy, which limits its use for a small project without a GPU.
 
-\item \textbf{Accurate Medium-Range Global Weather Forecasting with 3D Neural Networks (Nature, 2023)} \cite{ref5}
+\item \textbf{Accurate Medium-Range Global Weather Forecasting with 3D Neural Networks (Nature, 2023)}
 
 \textbf{Mechanism and Theory:} Pangu-Weather shows that a deep neural network trained purely on reanalysis data can forecast global weather more accurately than a leading operational numerical weather prediction system. The atmosphere is treated as a three-dimensional field of variables that the network learns to advance in time.
 
@@ -47,7 +47,8 @@
 
 \textbf{Technical Impact:} Pangu-Weather outperforms the ECMWF high-resolution forecast on standard deterministic scores. Its training is very expensive and its output is a global grid rather than a station forecast, which motivates the lighter, station-targeted approach of this project.
 
-\item \textbf{FuXi: A Cascade Machine Learning Forecasting System for 15-Day Global Weather Forecast (npj Climate and Atmospheric Science, 2023)} \cite{ref6}
+\newpage
+\item \textbf{FuXi: A Cascade Machine Learning Forecasting System for 15-Day Global Weather Forecast (npj Climate and Atmospheric Science, 2023)}
 
 \textbf{Mechanism and Theory:} FuXi extends data-driven forecasting to 15 days. It observes that a single model optimised for short lead times degrades at longer ones, and therefore uses separate models specialised for successive forecast windows.
 
@@ -55,7 +56,7 @@
 
 \textbf{Technical Impact:} FuXi reaches 15-day skill comparable to the ECMWF ensemble mean. Like Pangu-Weather, it requires several large models and ERA5-scale data, and it produces global rather than local forecasts.
 
-\item \textbf{Regional Data-Driven Weather Modeling with a Global Stretched Grid (Artificial Intelligence for the Earth Systems, 2026)} \cite{ref7}
+\item \textbf{Regional Data-Driven Weather Modeling with a Global Stretched Grid (Artificial Intelligence for the Earth Systems, 2026)}
 
 \textbf{Mechanism and Theory:} The paper applies transfer learning to regional forecasting: a model first learns global atmospheric dynamics from abundant coarse data and is then refined on scarce, high-resolution regional data. A graph neural network is used because a graph can mix grid resolutions naturally.
 
@@ -63,7 +64,7 @@
 
 \textbf{Technical Impact:} Bris outperforms the operational regional ensemble for 2-m temperature, although it underestimates extremes. It is the closest work to this project and directly motivates its staged pretraining and its choice of a graph neural network, applied here one level further down, from region to a single station.
 
-\item \textbf{Transfer Learning in Weather Prediction: Why, How, and What Should (Journal of Computational and Cognitive Engineering, 2024)} \cite{ref8}
+\item \textbf{Transfer Learning in Weather Prediction: Why, How, and What Should (Journal of Computational and Cognitive Engineering, 2024)}
 
 \textbf{Mechanism and Theory:} This review surveys transfer learning in weather prediction. It explains how knowledge learned on a data-rich source domain can be reused on a data-poor target domain, and identifies data scarcity and distribution mismatch as the two problems that transfer learning addresses best.
 
@@ -71,7 +72,7 @@
 
 \textbf{Technical Impact:} The review provides the theoretical framing for this project, in which the local record is scarce and differs systematically from regional data. It is a review only and does not provide an end-to-end system or address digitization.
 
-\item \textbf{CascadeTabNet: An Approach for End to End Table Detection and Structure Recognition from Image-Based Documents (IEEE/CVF CVPR Workshops, 2020)} \cite{ref9}
+\item \textbf{CascadeTabNet: An Approach for End to End Table Detection and Structure Recognition from Image-Based Documents (IEEE/CVF CVPR Workshops, 2020)}
 
 \textbf{Mechanism and Theory:} CascadeTabNet performs table detection and cell-level structure recognition with a single deep model, treating tables and cells as objects to be detected and segmented in the document image.
 
@@ -79,7 +80,7 @@
 
 \textbf{Technical Impact:} CascadeTabNet achieved state-of-the-art results on public table-detection benchmarks and became a standard component of table-digitization pipelines, including the semi-supervised historical-table work of Singh and Middleton \cite{ref2}.
 
-\item \textbf{PubTables-1M: Towards Comprehensive Table Extraction from Unstructured Documents (IEEE/CVF CVPR, 2022)} \cite{ref10}
+\item \textbf{PubTables-1M: Towards Comprehensive Table Extraction from Unstructured Documents (IEEE/CVF CVPR, 2022)}
 
 \textbf{Mechanism and Theory:} The paper argues that progress in table extraction is limited by the size and consistency of training data. It introduces a large dataset with consistent annotations for table detection, structure recognition and functional analysis.
 
@@ -87,7 +88,7 @@
 
 \textbf{Technical Impact:} Training on this large, consistent dataset improves table-structure recognition substantially. It also shows how much labelled data such models need, far more than a single handwritten weather register provides.
 
-\item \textbf{TrOCR: Transformer-Based Optical Character Recognition with Pre-Trained Models (AAAI Conference on Artificial Intelligence, 2023)} \cite{ref11}
+\item \textbf{TrOCR: Transformer-Based Optical Character Recognition with Pre-Trained Models (AAAI Conference on Artificial Intelligence, 2023)}
 
 \textbf{Mechanism and Theory:} TrOCR treats text recognition as an image-to-sequence problem solved end to end by Transformers, without a convolutional backbone or a separate language model.
 
@@ -95,7 +96,7 @@
 
 \textbf{Technical Impact:} TrOCR achieves state-of-the-art accuracy on printed and handwritten text-line benchmarks. Its handwritten checkpoints were the recognisers tested zero-shot on the SJCET register, where they read only about a third of the cells correctly, because isolated numerals in ruled cells differ from the text lines they were trained on.
 
-\item \textbf{The Integrated Surface Database: Recent Developments and Partnerships (Bulletin of the American Meteorological Society, 2011)} \cite{ref12}
+\item \textbf{The Integrated Surface Database: Recent Developments and Partnerships (Bulletin of the American Meteorological Society, 2011)}
 
 \textbf{Mechanism and Theory:} The paper describes the Integrated Surface Database (ISD) of NOAA's National Climatic Data Center, which merges surface weather observations from many national and international sources into a single, consistent archive.
 
