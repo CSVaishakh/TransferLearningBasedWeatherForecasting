@@ -8,6 +8,8 @@ const STEPS = [
   { t: 'Forecast', d: 'Max/min temperature and rain at SJCET up to 6 days ahead: scored on 2015–2016, and live from the latest data' },
 ]
 
+const TEAM = ['C S Vaishakh (SJC23AD025)', 'Elisha Anto (SJC23AD032)', 'Jeffin James (SJC23AD037)', 'Rahul Sarang (SJC23AD061)']
+
 export default function About() {
   return (
     <>
@@ -58,6 +60,17 @@ export default function About() {
             <li>Map tiles © OpenStreetMap contributors</li>
           </ul>
         </div>
+      </section>
+
+      <section className="card mt">
+        <div className="card-head"><h2>Team</h2></div>
+        <ul className="muted" style={{ margin: 0, paddingLeft: 18 }}>
+          {TEAM.map((m) => <li key={m}>{m}</li>)}
+        </ul>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          Guided by <strong>Mrs. Neethu Tom</strong>, Assistant Professor, Department of Artificial Intelligence and Data
+          Science, St. Joseph's College of Engineering and Technology, Palai.
+        </p>
       </section>
     </>
   )

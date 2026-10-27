@@ -1,6 +1,7 @@
 # Transfer Learning-Based Weather Forecasting for SJCET
 
-Final-year project, St. Joseph's College of Engineering and Technology (SJCET), Palai, Kerala.
+Final-year B.Tech project (Phase 1), Department of Artificial Intelligence and Data Science,
+St. Joseph's College of Engineering and Technology (SJCET), Palai, Kerala.
 
 The college has kept a paper weather register (dry/wet bulb, max/min temperature, rainfall) for years,
 but it was never digitized, and a few years of readings from one station are far too little to
@@ -15,11 +16,40 @@ train a forecasting model on. This project does two things:
 
 A web app shows the live forecast, the digitized register, and how the models compare.
 
-**Main result** (SJCET test period 2015–2016, next-day RMSE): pretraining lowers the error from
-2.17 → 1.43 °C for Tmax and 1.72 → 1.08 °C for Tmin compared with the same network trained on
-SJCET alone. The gap is largest when SJCET data is scarce: with 10% of its training months,
-pretrained models reach a Tmin error of 2.1–2.5 °C, against 3.7 °C from scratch.
-Details are in [model/README.md](model/README.md).
+## Results at a glance
+
+SJCET test period 2015–2016, all SJCET training months, forecasts issued one day ahead
+(full tables in [model/README.md](model/README.md) and chapter 4 of the [report](Report/thesis.pdf)):
+
+| Model | Tmax accuracy | Tmin accuracy | Tmax RMSE | Tmin RMSE |
+|---|---|---|---|---|
+| **GNN, region → stations → SJCET** (default) | **96.6%** | **96.2%** | 1.43 °C | 1.08 °C |
+| GNN, region → SJCET | 96.7% | 96.1% | 1.42 °C | 1.10 °C |
+| GNN, SJCET only (no pretraining) | 94.9% | 94.1% | 2.17 °C | 1.72 °C |
+| XGBoost (station + nearest grid) | 96.6% | 96.4% | 1.48 °C | 1.04 °C |
+| Climatology | 95.3% | 95.7% | 1.92 °C | 1.24 °C |
+
+Accuracy is 100 − MAPE. With the default model, 86% of next-day maximum and 93% of minimum
+temperature forecasts fall within ±2 °C of the register reading. Pretraining cuts the error by about
+a third compared with the same network trained on SJCET alone, and the gap is largest when SJCET
+data is scarce: with 10% of its training months, pretrained models reach a Tmin RMSE of 2.1–2.5 °C,
+against 3.7 °C from scratch.
+
+## Screenshots
+
+| Forecast | History | Results |
+|---|---|---|
+| ![Forecast page](Report/figures/app_forecast.png) | ![History page](Report/figures/app_history.png) | ![Results page](Report/figures/app_results.png) |
+
+## Project report
+
+The Phase 1 report (LaTeX source and PDF) is in [Report/](Report/): **[Report/thesis.pdf](Report/thesis.pdf)**.
+
+## Team
+
+C S Vaishakh (SJC23AD025) · Elisha Anto (SJC23AD032) · Jeffin James (SJC23AD037) · Rahul Sarang (SJC23AD061)
+
+Guide: Mrs. Neethu Tom, Assistant Professor, Department of Artificial Intelligence and Data Science, SJCET Palai.
 
 ---
 
@@ -33,6 +63,7 @@ Details are in [model/README.md](model/README.md).
 ├── frontend/
 │   ├── api/            # FastAPI backend: serves the files the other parts produce
 │   └── web/            # React + Vite + TypeScript web app
+├── Report/            # Phase 1 report: LaTeX source, figures, thesis.pdf
 ├── data/sjcet/         # the digitized register (not in git)
 ├── Dataset/            # NOAA GSOD daily files 1929–2025 (not in git)
 └── About/              # scans, photos, review slides, papers (not in git)
@@ -45,6 +76,7 @@ Each part has its own README:
 | Digitization | [digitization/NOTES.md](digitization/NOTES.md) | `digitization/` (uv) |
 | Model | [model/README.md](model/README.md) | `model/` (uv, PyTorch CPU) |
 | Web app | [frontend/README.md](frontend/README.md) | `frontend/api/` (uv) + Node for `frontend/web/` |
+| Report | [Report/README.md](Report/README.md) | LaTeX (`latexmk`) |
 
 Datasets, model outputs and checkpoints are kept out of git (see [.gitignore](.gitignore)).
 To run the app on a fresh clone, copy `data/sjcet/` and `model/outputs/` over from a machine that
@@ -217,4 +249,3 @@ is kept in case it is needed later.
   pull ahead at longer lead times.
 - **Humidity at SJCET is approximate.** It is derived from the forecast mean temperature and
   dewpoint, and the register has no true daily mean temperature.
-- Team names on the About page are not filled in yet (`frontend/web/src/pages/About.tsx`).

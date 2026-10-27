@@ -47,3 +47,6 @@ Report/*.nlo
 Report/*.nls
 Report/*.ilg
 Report/*.out
+
+# Per-student report copies
+Report/individual/
